@@ -189,6 +189,8 @@ export function assertCoverDesign({ design }: { design: CoverDesignV1 }): void {
 	assertCoverSource({ source: design.source });
 	if (
 		!/^#[a-f0-9]{6}$/i.test(design.canvas.backgroundColor) ||
+		(design.templateId !== undefined &&
+			typeof design.templateId !== "string") ||
 		!Number.isFinite(Date.parse(design.createdAt)) ||
 		!Number.isFinite(Date.parse(design.updatedAt))
 	)
@@ -248,6 +250,7 @@ export function assertCoverText({ layer }: { layer: CoverTextLayerV1 }): void {
 		!inRange(layer.fontSize, 8, 512) ||
 		!inRange(layer.rotation, -180, 180) ||
 		(layer.opacity !== undefined && !inRange(layer.opacity, 0, 1)) ||
+		(layer.templateId !== undefined && typeof layer.templateId !== "string") ||
 		!["sans-serif", "serif", "monospace"].includes(layer.fontFamily) ||
 		!["left", "center", "right"].includes(layer.align) ||
 		!/^#[a-f0-9]{6}$/i.test(layer.color) ||

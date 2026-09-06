@@ -85,6 +85,14 @@ export function applyCoverTemplate({
 			(layer): layer is CoverTextLayerV1 =>
 				layer.kind === "text" && !layer.templateId
 		);
+	const manualIds = new Set(manual.map((layer) => layer.id));
+	// A manual layer may already use a template ID; keep generated IDs unique.
+	const layerId = (base: string): string => {
+		let id = base;
+		for (let suffix = 2; manualIds.has(id); suffix += 1)
+			id = `${base}-${suffix}`;
+		return id;
+	};
 	const texts: CoverTextLayerV1[] =
 		template.id === "none"
 			? []
@@ -93,7 +101,7 @@ export function applyCoverTemplate({
 						...createCoverText({
 							canvas: design.canvas,
 							content: template.title,
-							id: `template-${template.id}-title`,
+							id: layerId(`template-${template.id}-title`),
 						}),
 						templateId,
 						y: template.y,
@@ -107,7 +115,7 @@ export function applyCoverTemplate({
 						...createCoverText({
 							canvas: design.canvas,
 							content: template.subtitle,
-							id: `template-${template.id}-subtitle`,
+							id: layerId(`template-${template.id}-subtitle`),
 						}),
 						templateId,
 						y: Math.min(0.9, template.y + 0.19),

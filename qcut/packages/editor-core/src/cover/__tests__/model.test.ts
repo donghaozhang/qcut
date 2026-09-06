@@ -122,6 +122,11 @@ describe("cover domain", () => {
 		).toThrow();
 		expect(() =>
 			assertCoverDesign({
+				design: { ...design, templateId: 1 } as unknown as CoverDesignV1,
+			})
+		).toThrow();
+		expect(() =>
+			assertCoverDesign({
 				design: { ...design, layers: [...design.layers, ...design.layers] },
 			})
 		).toThrow();
@@ -179,6 +184,25 @@ describe("cover domain", () => {
 			applyCoverTemplate({ design, templateId: "remote-unknown" })
 		).toThrow();
 	});
+	it("keeps template layer IDs unique against manual layers", () => {
+		const manual = [
+			"template-editorial-title",
+			"template-editorial-title-2",
+		].map((id) => createCoverText({ canvas: design.canvas, content: id, id }));
+		const next = applyCoverTemplate({
+			design: { ...design, layers: [design.layers[0], ...manual] },
+			templateId: "editorial",
+		});
+		expect(() => assertCoverDesign({ design: next })).not.toThrow();
+		expect(next.layers.slice(1, 3)).toEqual(manual);
+		expect(next.layers.map((layer) => layer.id)).toEqual([
+			"image-1",
+			"template-editorial-title",
+			"template-editorial-title-2",
+			"template-editorial-title-3",
+			"template-editorial-subtitle",
+		]);
+	});
 	it.each([
 		{ x: NaN },
 		{ fontSize: 0 },
@@ -187,6 +211,7 @@ describe("cover domain", () => {
 		{ color: "url(secret)" },
 		{ fontFamily: "unknown" },
 		{ bold: 1 },
+		{ templateId: 1 },
 		{ content: "x".repeat(2001) },
 	])("rejects malformed text %j", (changes) => {
 		const layer = {
