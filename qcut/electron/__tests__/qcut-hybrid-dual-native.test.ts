@@ -17,8 +17,8 @@ const cube = {
 };
 const skinCube = { ...cube, values: new Float32Array(24).fill(1) };
 describe("hybrid dual catalog", () => {
-	it("pins 100 variants, exposes model dependency and never inherits verified", () => {
-		expect(HYBRID_DUAL_PROFILES).toHaveLength(100);
+	it("pins 117 variants, exposes model dependency and never inherits verified", () => {
+		expect(HYBRID_DUAL_PROFILES).toHaveLength(117);
 		const cards = HYBRID_DUAL_PROFILES.map((p) => ({
 			...p,
 			available: true,
@@ -38,7 +38,7 @@ describe("hybrid dual catalog", () => {
 			expect(card.maskProvider).toBe("jianying-local-skin-v1");
 			expect(card.verification).toBe("unverified");
 		}
-		expect(listed.count).toBe(101);
+		expect(listed.count).toBe(118);
 		expect(
 			supportsIndependentGraph({
 				card: { ...cards[0], version: "0".repeat(32) },
@@ -49,6 +49,16 @@ describe("hybrid dual catalog", () => {
 				card: { ...cards[0], requirements: ["matting"] },
 			})
 		).toBe(false);
+	});
+	it("keeps gray-frame parity failures out of the catalog", () => {
+		for (const id of [
+			"7131290518838938887",
+			"7127655008715230495",
+			"7127675183246200072",
+		])
+			expect(
+				HYBRID_DUAL_PROFILES.some((profile) => profile.resourceId === id)
+			).toBe(false);
 	});
 	it("encodes separate LUTs and rejects invalid strengths", () => {
 		const graph = { profile: base, cube, skinCube };
@@ -67,6 +77,21 @@ describe("hybrid dual catalog", () => {
 				},
 			})
 		).toThrow("configuration");
+	});
+	it.each([
+		["vf", 0],
+		["adobe-3dl", 0],
+		["tiled", 1],
+		["tiled-floor", 2],
+	] as const)("keeps %s texture coordinate semantics", (format, sampling) => {
+		const profile = {
+			...base,
+			dualLut: { ...base.dualLut!, format },
+		};
+		const bytes = encodeIndependentGraph({
+			graph: { profile, cube, skinCube },
+		});
+		expect(bytes.readUInt32LE(24 + 8 * 16 + 8)).toBe(sampling);
 	});
 	it("encodes independent dimensions without resampling either cube", () => {
 		const largerSkin = { ...skinCube, size: 3, values: new Float32Array(81) };
@@ -143,6 +168,7 @@ describe.skipIf(
 	}, 120_000);
 	it.each([
 		"vf",
+		"adobe-3dl",
 		"tiled",
 		"tiled-floor",
 	] as const)("composes %s with mask orientation, strength and alpha", async (format) => {
