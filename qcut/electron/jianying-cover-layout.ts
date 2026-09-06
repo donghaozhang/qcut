@@ -19,7 +19,7 @@ const textSchema = z.object({
 	font_title: z.string().max(200),
 	font_size: finite.positive(),
 	alignment: z.union([z.literal(0), z.literal(1), z.literal(2)]),
-	typesetting: z.literal(0),
+	typesetting: z.union([z.literal(0), z.literal(1)]),
 	text_alpha: finite.min(0).max(1),
 	text_color: color,
 	use_effect_default_color: z.boolean().optional(),
@@ -162,8 +162,6 @@ export function parseCoverTextLayout({ definition }: { definition: unknown }) {
 				);
 				if (matches.length !== 1)
 					throw new Error("Cover text material is missing or ambiguous");
-				if (matches[0].typesetting !== 0)
-					throw new Error("Vertical cover text is not supported yet");
 				const text = textSchema.parse(matches[0]);
 				if (segment.extra_material_refs.length > 1)
 					throw new Error("Multiple cover text effects are not supported");
@@ -174,6 +172,11 @@ export function parseCoverTextLayout({ definition }: { definition: unknown }) {
 				const effect = effectId
 					? effectSchema.parse(matchesEffect[0])
 					: undefined;
+				if (
+					text.typesetting === 1 &&
+					(effect || !/^[ -~\n]+$/.test(text.content))
+				)
+					throw new Error("Vertical cover text requires plain Latin text");
 				return { text, segment, ...(effect ? { effect } : {}) };
 			});
 		});
