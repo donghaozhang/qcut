@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoverRepository } from "../cover-repository";
 import type { CoverBlobStore } from "../cover-blob-store";
 import type { CoverDesignV1 } from "@qcut/editor-core/cover";
-import { applyCoverTemplate } from "@qcut/editor-core/cover";
+import { applyCoverTemplate, createCoverText } from "@qcut/editor-core/cover";
 
 const records = new Map<string, Blob>();
 const store: CoverBlobStore = {
@@ -49,6 +49,51 @@ function outputs() {
 }
 
 describe("cover repository transactions", () => {
+	it("persists native word art, frame time and content-addressed font through copy and reopen", async () => {
+		const design = await createDesign();
+		design.layers.push({
+			...createCoverText({
+				canvas: design.canvas,
+				id: "native",
+				content: "花字封面",
+			}),
+			fontAsset: {
+				kind: "local-font",
+				source: "jianying-cache",
+				assetId: `sha256:${"a".repeat(64)}`,
+				cssFamily: `QCutLocal_${"a".repeat(20)}`,
+				familyName: "Local",
+				fullName: "Local Regular",
+				postscriptName: "Local-Regular",
+			},
+			jianyingTextStyle: {
+				schemaVersion: 1,
+				source: "jianying-cache",
+				packageKind: "InfoSticker",
+				resourceId: "123",
+				packageHash: "b".repeat(32),
+				editMode: "runtime-with-preload-fallback",
+				slotMapping: "line-to-widget",
+				timeMapping: "stretch",
+				templateDuration: 3,
+			},
+			nativeFrameTime: 1.2,
+		});
+		const cover = await repository.saveRevision({
+			projectId: "p1",
+			design,
+			...outputs(),
+		});
+		await repository.copyProject({
+			sourceProjectId: "p1",
+			targetProjectId: "p2",
+			cover,
+		});
+		await repository.removeProject({ projectId: "p1" });
+		expect(await repository.loadDesign({ projectId: "p2", cover })).toEqual(
+			design
+		);
+	});
 	it("persists editable templates and crop metadata through copy and reopen", async () => {
 		const design = applyCoverTemplate({
 			design: await createDesign(),
