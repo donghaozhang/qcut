@@ -89,9 +89,9 @@ export class CoverRepository {
 	}): Promise<ProjectCoverBindingV1> {
 		assertCoverDesign({ design });
 		await Promise.all(
-			design.layers.map((layer) =>
-				this.readAsset({ projectId, asset: layer.asset })
-			)
+			design.layers
+				.filter((layer) => layer.kind === "image")
+				.map((layer) => this.readAsset({ projectId, asset: layer.asset }))
 		);
 		const [renderAsset, thumbnailAsset] = await Promise.all([
 			this.saveAsset({ projectId, blob: render, ...design.canvas }),
@@ -164,7 +164,9 @@ export class CoverRepository {
 		const design = await this.loadDesign({ projectId: sourceProjectId, cover });
 		const assets = new Map(
 			[
-				...design.layers.map((layer) => layer.asset),
+				...design.layers
+					.filter((layer) => layer.kind === "image")
+					.map((layer) => layer.asset),
 				cover.render,
 				cover.thumbnail,
 			].map((asset) => [asset.relativePath, asset])
