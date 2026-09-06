@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Ban, Check, AlertTriangle, RefreshCw } from "lucide-react";
+import { Ban, Check, AlertTriangle, RefreshCw, Type } from "lucide-react";
 import {
 	JIANYING_COVER_CATEGORIES,
 	type CoverLibraryResult,
@@ -28,9 +28,13 @@ function dependencySourceLabel({
 export function CoverPrivateLibrary({
 	onClear,
 	disabled,
+	onApply,
+	importing = false,
 }: {
 	onClear: () => void;
 	disabled: boolean;
+	onApply?: (packageHash: string) => void;
+	importing?: boolean;
 }) {
 	const { locale } = useTranslation();
 	const zh = locale === "zh";
@@ -61,6 +65,7 @@ export function CoverPrivateLibrary({
 				category === "default" || entry.categories.some((id) => id === category)
 		) ?? [];
 	const detail = entries.find((entry) => entry.packageHash === selected);
+	const nativeAvailable = Boolean(window.electronAPI?.jianyingTextRuntime);
 	return (
 		<div className="cover-template-body" data-testid="cover-private-library">
 			<nav
@@ -110,7 +115,7 @@ export function CoverPrivateLibrary({
 						<button
 							type="button"
 							className="cover-template"
-							disabled={disabled}
+							disabled={disabled || importing}
 							onClick={onClear}
 							onKeyDown={(event) => activateCoverControl({ event })}
 						>
@@ -125,11 +130,7 @@ export function CoverPrivateLibrary({
 							type="button"
 							className={`cover-template ${selected === entry.packageHash ? "is-selected" : ""}`}
 							key={entry.packageHash}
-							title={
-								zh
-									? "查看模板缓存；原生渲染尚未接入"
-									: "Inspect cached template; native rendering not connected"
-							}
+							title={entry.title}
 							aria-pressed={selected === entry.packageHash}
 							onClick={() => setSelected(entry.packageHash)}
 							onKeyDown={(event) => activateCoverControl({ event })}
@@ -149,10 +150,19 @@ export function CoverPrivateLibrary({
 									? zh
 										? "资源已缓存"
 										: "Resources cached"
-									: zh
-										? "依赖不完整"
-										: "Missing dependencies"}
+									: entry.dependencies
+												.filter((item) => item.status !== "cached")
+												.every((item) => item.usage?.role === "background")
+										? zh
+											? "缺背景滤镜"
+											: "Background filter missing"
+										: zh
+											? "依赖不完整"
+											: "Missing dependencies"}
 							</small>
+							{entry.textLayout?.ready && (
+								<small>{zh ? "文字资源就绪" : "Text resources ready"}</small>
+							)}
 						</button>
 					))}
 				</div>
@@ -169,7 +179,54 @@ export function CoverPrivateLibrary({
 						aria-label={zh ? "模板缓存详情" : "Template cache details"}
 					>
 						<strong>{detail.title}</strong>
-						<p>{zh ? "原生渲染尚未接入" : "Native rendering not connected"}</p>
+						<p>{zh ? "完整模板：未接入" : "Full template: not connected"}</p>
+						{detail.textLayout?.ready ? (
+							<button
+								type="button"
+								className="cover-command"
+								disabled={
+									disabled ||
+									importing ||
+									!onApply ||
+									(detail.textLayout.requiresNative && !nativeAvailable)
+								}
+								onClick={() => onApply?.(detail.packageHash)}
+								onKeyDown={(event) => activateCoverControl({ event })}
+							>
+								<Type size={14} />
+								{importing
+									? zh
+										? "准备中…"
+										: "Preparing…"
+									: zh
+										? "套用文字布局"
+										: "Apply text layout"}
+							</button>
+						) : (
+							<p>
+								{detail.textLayout?.reason === "vertical-text"
+									? zh
+										? "竖排文字待接入"
+										: "Vertical text pending"
+									: zh
+										? "文字布局不可用"
+										: "Text layout unavailable"}
+							</p>
+						)}
+						{detail.textLayout?.requiresNative && !nativeAvailable && (
+							<p>
+								{zh
+									? "原生花字需 QCut 桌面版"
+									: "Native word art requires QCut desktop"}
+							</p>
+						)}
+						{detail.textLayout?.ready && (
+							<p>
+								{zh
+									? "背景：保留当前图像与裁切"
+									: "Background: current image and crop"}
+							</p>
+						)}
 						<p>
 							{detail.textCount} {zh ? "个文字图层" : "text layers"} ·{" "}
 							{
@@ -183,7 +240,25 @@ export function CoverPrivateLibrary({
 							{detail.dependencies.map((item) => (
 								<li key={item.reference}>
 									{item.status === "cached" ? "✓" : "!"}{" "}
-									{item.resolution?.label || item.reference}
+									{item.usage?.name || item.resolution?.label || item.reference}
+									{item.usage && (
+										<small>
+											{item.usage.role === "background"
+												? zh
+													? "背景轨道"
+													: "Background track"
+												: item.usage.role === "text"
+													? zh
+														? "文字图层"
+														: "Text layer"
+													: zh
+														? "用途待确认"
+														: "Usage unresolved"}
+											{item.usage.resourceId
+												? ` · ${item.usage.resourceId}`
+												: ""}
+										</small>
+									)}
 									{item.resolution && (
 										<small>
 											{dependencySourceLabel({
