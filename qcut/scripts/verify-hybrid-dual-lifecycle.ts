@@ -141,6 +141,12 @@ for (const profile of selected) {
 				max = Math.max(max, difference);
 			}
 			const mae = sum / (width * height * 3);
+			if (mae > 0.25 || max > 4) {
+				const prefix = `${profile.resourceId}-failed-${metrics.length}-${frame.key}`;
+				await saveFrame({ rgba: frame.rgba, name: `${prefix}-input.png` });
+				await saveFrame({ rgba: actual.rgba, name: `${prefix}-metal.png` });
+				await saveFrame({ rgba: expected.rgba, name: `${prefix}-native.png` });
+			}
 			if (motion && frame === motion.frames.at(-1)) {
 				await saveFrame({
 					rgba: actual.rgba,
