@@ -6,11 +6,12 @@ struct GraphStage {
     int source, base;
 };
 
-std::vector<GraphStage> makeGraphPlan(uint32_t kind, uint32_t variant, uint32_t width, uint32_t height) {
+std::vector<GraphStage> makeGraphPlan(uint32_t kind, uint32_t variant, uint32_t width, uint32_t height, bool dualSharpen = false) {
     constexpr uint32_t counts[] = {1, 2, 3, 2, 5, 1, 4, 7, 11, 1, 2, 1};
     if (kind >= std::size(counts)) throw std::runtime_error("Unknown graph topology");
     std::vector<GraphStage> plan;
-    for (uint32_t index = 0; index < counts[kind]; ++index)
+    const uint32_t count = kind == 11 && dualSharpen ? 2 : counts[kind];
+    for (uint32_t index = 0; index < count; ++index)
         plan.push_back({width, height, float(width), float(height), int(index) - 1, -1});
     const bool detail = kind == 4 || kind == 7 || kind == 8;
     if (!detail) return plan;
