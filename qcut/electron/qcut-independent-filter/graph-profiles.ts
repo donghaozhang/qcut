@@ -11,6 +11,7 @@ export interface DualLutProfile {
 	backgroundStrength: number;
 	skinStrength: number;
 	clampAlpha: boolean;
+	sharpen?: number;
 }
 
 export interface IndependentGraphProfile extends IndependentFilterIdentity {
