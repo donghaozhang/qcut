@@ -109,11 +109,11 @@ describe("independent graph asset contracts", () => {
 	])("rejects malformed or unsupported 3DL data", (text) => {
 		expect(() => parseAdobeThreeDl({ text })).toThrow();
 	});
-	it("pins all 26 graph identities without importing old parity labels", () => {
-		expect(INDEPENDENT_GRAPH_PROFILES).toHaveLength(26);
+	it("pins all 45 graph identities without importing old parity labels", () => {
+		expect(INDEPENDENT_GRAPH_PROFILES).toHaveLength(45);
 		expect(
 			new Set(INDEPENDENT_GRAPH_PROFILES.map((p) => p.resourceId)).size
-		).toBe(26);
+		).toBe(45);
 		for (const p of INDEPENDENT_GRAPH_PROFILES) {
 			expect(p.controlHash).toMatch(/^[a-f0-9]{64}$/);
 			expect(p.assetHash).toMatch(/^[a-f0-9]{64}$/);
@@ -125,6 +125,37 @@ describe("independent graph asset contracts", () => {
 		expect(
 			selected.cards.find((c) => c.resourceId === profile.resourceId)
 		).toMatchObject({ independentKind: "sharpen", verification: "unverified" });
+	});
+	it("encodes new topologies and rejects variants on unrelated graphs", () => {
+		const cube = parseAdobeThreeDl({ text: identityText });
+		for (const [kind, code] of [
+			["detail-chain", 4],
+			["tiled-alpha", 5],
+			["spring", 6],
+			["edge-camera", 7],
+			["edge-glow", 8],
+			["mask-invariant", 9],
+			["mask-invariant-sharpen", 10],
+		] as const) {
+			const encoded = encodeIndependentGraph({
+				graph: { profile: { ...profile, kind }, cube },
+			});
+			expect(encoded.readUInt32LE(0)).toBe(code);
+			expect(encoded.readUInt32LE(20)).toBe(0);
+		}
+		const sanyo = INDEPENDENT_GRAPH_PROFILES.find(
+			(p) => p.detailVariant === "sanyo"
+		)!;
+		expect(
+			encodeIndependentGraph({ graph: { profile: sanyo, cube } }).readUInt32LE(
+				20
+			)
+		).toBe(1);
+		expect(() =>
+			encodeIndependentGraph({
+				graph: { profile: { ...sanyo, kind: "direct" }, cube },
+			})
+		).toThrow("variant");
 	});
 	it("fails closed on unavailable, changed, or AI-dependent cards", () => {
 		expect(supportsIndependentGraph({ card })).toBe(true);
