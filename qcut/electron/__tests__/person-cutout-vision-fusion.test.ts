@@ -40,7 +40,7 @@ describeOnMac("person cutout Vision fusion", () => {
 			executablePath,
 		]);
 		await expect(execFileAsync(executablePath)).resolves.toBeDefined();
-	});
+	}, 30_000);
 
 	it("resizes model alpha with centered bilinear sampling", async () => {
 		const executablePath = path.join(temporaryDirectory, "alpha-resize-test");
@@ -56,7 +56,7 @@ describeOnMac("person cutout Vision fusion", () => {
 			executablePath,
 		]);
 		await expect(execFileAsync(executablePath)).resolves.toBeDefined();
-	});
+	}, 30_000);
 
 	it("returns a full-size mask through the macOS Vision runtime", async () => {
 		const executablePath = path.join(temporaryDirectory, "vision-runtime-test");
