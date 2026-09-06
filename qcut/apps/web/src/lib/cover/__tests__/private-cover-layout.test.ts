@@ -68,6 +68,35 @@ function fixture() {
 	return { layout, ctx, source };
 }
 describe("private cover layout application", () => {
+	it.each([
+		[-180, -90],
+		[0, 90],
+		[90, 180],
+		[100, -170],
+		[180, -90],
+	])("maps sideways text rotation %s to %s without changing its source", (rotation, expected) => {
+		const { layout, ctx } = fixture();
+		layout.texts[0].text.typesetting = 1;
+		layout.texts[0].text.content = "TRAVEL\nWITH FRIENDS";
+		layout.texts[0].segment.clip.rotation = rotation;
+		const next = applyPrivateCoverTextLayout({ design, layout, ctx });
+		expect(next.layers[1]).toMatchObject({
+			rotation: expected,
+			content: "TRAVEL\nWITH FRIENDS",
+			x: 0.25,
+			y: 0.25,
+			fontSize: 80,
+		});
+		expect(layout.texts[0].segment.clip.rotation).toBe(rotation);
+		const restored = JSON.parse(JSON.stringify(next));
+		expect(restored.layers[1]).toMatchObject({
+			rotation: expected,
+			content: "TRAVEL\nWITH FRIENDS",
+			x: 0.25,
+			y: 0.25,
+			fontSize: 80,
+		});
+	});
 	it("preserves background, crop and manual text while replacing the previous template", () => {
 		const { layout, ctx } = fixture();
 		const manual = createCoverText({
