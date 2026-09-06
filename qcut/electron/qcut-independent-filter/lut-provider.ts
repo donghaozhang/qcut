@@ -12,12 +12,16 @@ import {
 	createIndependentFilterSession,
 	type IndependentFilterSession,
 } from "./session.js";
+import {
+	loadIndependentGraph,
+	supportsIndependentGraph,
+} from "./graph-data.js";
 
 // One serialized scheduler owns the LRU: eviction never kills an in-flight frame.
 export function createIndependentLutProvider() {
 	const sessions = new Map<
 		string,
-		{ session: IndependentFilterSession; title: string }
+		{ session: IndependentFilterSession; title: string; graph: boolean }
 	>();
 	let tail: Promise<unknown> = Promise.resolve();
 	let pending = 0;
@@ -36,6 +40,7 @@ export function createIndependentLutProvider() {
 		run: (active: {
 			session: IndependentFilterSession;
 			title: string;
+			graph: boolean;
 		}) => Promise<T>;
 	}) => {
 		if (disposed)
@@ -66,16 +71,23 @@ export function createIndependentLutProvider() {
 						sessions.delete(oldest[0]);
 						await oldest[1].session.dispose();
 					}
-					const cube = await loadIndependentCube({ card });
-					const session = await createIndependentFilterSession({
-						cube,
-						identity: selected,
-					});
+					const graph = supportsIndependentGraph({ card });
+					const session = await createIndependentFilterSession(
+						graph
+							? {
+									graph: await loadIndependentGraph({ card }),
+									identity: selected,
+								}
+							: {
+									cube: await loadIndependentCube({ card }),
+									identity: selected,
+								}
+					);
 					if (disposed) {
 						await session.dispose();
 						throw new Error("Independent LUT provider is disposed.");
 					}
-					active = { session, title: card.title };
+					active = { session, title: card.title, graph };
 				}
 				sessions.delete(key);
 				sessions.set(key, active);
@@ -104,8 +116,8 @@ export function createIndependentLutProvider() {
 			const selected = parseIndependentIdentity({ request: identity });
 			return useSession({
 				identity: selected,
-				run: async ({ title }) =>
-					independentLutSettings({ ...selected, title }),
+				run: async ({ title, graph }) =>
+					independentLutSettings({ ...selected, title, graph }),
 			});
 		},
 		render: (request: IndependentFilterRequest) => {
