@@ -23,6 +23,7 @@ export interface IndependentFilterRequest
 }
 
 export interface IndependentFilterResult {
+	maskProvider?: "jianying-local-skin-v1";
 	provider:
 		| typeof QCUT_FOG_PROVIDER
 		| typeof QCUT_LUT_PROVIDER
