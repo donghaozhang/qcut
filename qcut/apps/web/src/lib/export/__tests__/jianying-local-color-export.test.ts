@@ -43,6 +43,7 @@ describe("Jianying local export selection", () => {
 	it.each([
 		"qcut-metal-fog-v1",
 		"qcut-metal-lut-v1",
+		"qcut-metal-graph-v1",
 	] as const)("routes %s media, stacks, and adjustment layers through canvas export", (provider) => {
 		const color = {
 			...structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS),
