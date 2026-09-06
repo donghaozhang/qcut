@@ -1,0 +1,148 @@
+// @vitest-environment node
+import { describe, expect, it, vi } from "vitest";
+import { createIndependentFilterSession } from "../qcut-independent-filter/session.js";
+import {
+	encodeIndependentGraph,
+	supportsIndependentGraph,
+} from "../qcut-independent-filter/graph-data.js";
+import { HYBRID_DUAL_PROFILES } from "../qcut-independent-filter/graph-profiles-dual.js";
+import { selectIndependentCatalog } from "../qcut-independent-filter/lut-catalog.js";
+
+const base = HYBRID_DUAL_PROFILES[0];
+const cube = {
+	size: 2,
+	domainMin: [0, 0, 0] as [number, number, number],
+	domainMax: [1, 1, 1] as [number, number, number],
+	values: new Float32Array(24),
+};
+const skinCube = { ...cube, values: new Float32Array(24).fill(1) };
+describe("hybrid dual catalog", () => {
+	it("pins 57 variants, exposes model dependency and never inherits verified", () => {
+		expect(HYBRID_DUAL_PROFILES).toHaveLength(57);
+		const cards = HYBRID_DUAL_PROFILES.map((p) => ({
+			...p,
+			available: true,
+			cacheStatus: "cached" as const,
+			categories: [],
+			implementation: "dual-lut" as const,
+			verification: "verified" as const,
+			lutCount: 2,
+			requirements: ["skin_seg"],
+		}));
+		const listed = selectIndependentCatalog({
+			catalog: { cards, count: cards.length },
+		});
+		for (const card of listed.cards.filter(
+			(c) => c.independentKind === "skin-dual-lut"
+		)) {
+			expect(card.maskProvider).toBe("jianying-local-skin-v1");
+			expect(card.verification).toBe("unverified");
+		}
+		expect(listed.count).toBe(58);
+		expect(
+			supportsIndependentGraph({
+				card: { ...cards[0], version: "0".repeat(32) },
+			})
+		).toBe(false);
+		expect(
+			supportsIndependentGraph({
+				card: { ...cards[0], requirements: ["matting"] },
+			})
+		).toBe(false);
+	});
+	it("encodes separate LUTs and rejects invalid strengths", () => {
+		const graph = { profile: base, cube, skinCube };
+		expect(encodeIndependentGraph({ graph }).readUInt32LE(0)).toBe(11);
+		expect(() =>
+			encodeIndependentGraph({ graph: { ...graph, skinCube: undefined } })
+		).toThrow("both cubes");
+		expect(() =>
+			encodeIndependentGraph({
+				graph: {
+					...graph,
+					profile: {
+						...base,
+						dualLut: { ...base.dualLut!, skinStrength: NaN },
+					},
+				},
+			})
+		).toThrow("configuration");
+	});
+});
+describe.skipIf(
+	process.platform !== "darwin" ||
+		process.env.QCUT_INDEPENDENT_METAL_TEST !== "1"
+)("real hybrid Metal composition", () => {
+	it.each([
+		"vf",
+		"tiled",
+		"tiled-floor",
+	] as const)("composes %s with mask orientation, strength and alpha", async (format) => {
+		const profile = {
+			...base,
+			alphaWeighted: format !== "tiled",
+			dualLut: {
+				...base.dualLut!,
+				format,
+				backgroundStrength: 1,
+				skinStrength: 1,
+				clampAlpha: format === "tiled",
+			},
+		};
+		const mask = {
+			width: 1,
+			height: 2,
+			orientation: "bottom-left" as const,
+			bytes: new Uint8Array([0, 255]),
+		};
+		const renderMask = vi.fn(async () => mask);
+		const session = await createIndependentFilterSession({
+			graph: { profile, cube, skinCube },
+			identity: base,
+			maskSource: { render: renderMask, dispose: async () => {} },
+		});
+		try {
+			const rgba = new Uint8Array([80, 80, 80, 128, 80, 80, 80, 128]);
+			const request = { ...base, width: 1, height: 2, rgba, intensity: 0 };
+			expect((await session.render(request)).rgba).toEqual(rgba);
+			expect(renderMask).not.toHaveBeenCalled();
+			const result = await session.render({ ...request, intensity: 100 });
+			const weight = format === "tiled" ? 1 : 128 / 255;
+			const top =
+				format === "tiled" ? 128 : Math.round(80 + (255 - 80) * weight);
+			const bottom = Math.round(80 * (1 - weight));
+			expect(Math.abs(result.rgba[0] - top)).toBeLessThanOrEqual(1);
+			expect(Math.abs(result.rgba[4] - bottom)).toBeLessThanOrEqual(1);
+			expect(result.rgba[3]).toBe(128);
+			expect(result.rgba[7]).toBe(128);
+			expect(result.maskProvider).toBe("jianying-local-skin-v1");
+		} finally {
+			await session.dispose();
+		}
+	}, 120_000);
+	it("rejects missing masks rather than returning native RGB or passthrough", async () => {
+		const session = await createIndependentFilterSession({
+			graph: { profile: base, cube, skinCube },
+			identity: base,
+			maskSource: {
+				render: async () => {
+					throw new Error("no mask");
+				},
+				dispose: async () => {},
+			},
+		});
+		try {
+			await expect(
+				session.render({
+					...base,
+					width: 1,
+					height: 1,
+					rgba: new Uint8Array([60, 70, 80, 255]),
+					intensity: 100,
+				})
+			).rejects.toThrow("no mask");
+		} finally {
+			await session.dispose();
+		}
+	}, 120_000);
+});
