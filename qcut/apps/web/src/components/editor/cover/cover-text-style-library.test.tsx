@@ -100,7 +100,7 @@ describe("cover text style library", () => {
 		expect(onChange.mock.lastCall?.[0]).not.toHaveProperty("id");
 		expect(onChange.mock.lastCall?.[0]).not.toHaveProperty("fontSize");
 	});
-	it("reads existing lab data, labels approximate styles and excludes native-only packages", () => {
+	it("reads existing lab data and excludes packages without an applicable reference", () => {
 		const onChange = vi.fn();
 		render(
 			<CoverTextStyleLibrary
@@ -113,10 +113,10 @@ describe("cover text style library", () => {
 		);
 		fireEvent.click(screen.getByRole("button", { name: "花字实验室" }));
 		expect(useJianyingTextStyleLab).toHaveBeenLastCalledWith({ enabled: true });
-		expect(screen.getByText("1 / 2 可转为静态样式")).toBeDefined();
+		expect(screen.getByText("1 / 2 可应用花字")).toBeDefined();
 		expect(screen.queryByText("Native only")).toBeNull();
 		fireEvent.click(
-			screen.getByRole("button", { name: "近似样式 · Local glow" })
+			screen.getByRole("button", { name: "静态近似 · Local glow" })
 		);
 		expect(onChange.mock.lastCall?.[0].textStyle).toMatchObject({
 			glowEnabled: true,
@@ -125,7 +125,48 @@ describe("cover text style library", () => {
 		fireEvent.change(screen.getByRole("searchbox"), {
 			target: { value: "no match" },
 		});
-		expect(screen.queryByTestId("cover-preset-lab:cached")).toBeNull();
+		expect(screen.queryByTestId("cover-word-art-cached")).toBeNull();
+	});
+	it("applies native-only InfoSticker packages without flattening the lab reference", () => {
+		const reference = {
+			schemaVersion: 1 as const,
+			source: "jianying-cache" as const,
+			packageKind: "InfoSticker" as const,
+			resourceId: "456",
+			packageHash: "a".repeat(32),
+			editMode: "runtime-with-preload-fallback" as const,
+			slotMapping: "line-to-widget" as const,
+			timeMapping: "stretch" as const,
+			templateDuration: 3,
+		};
+		vi.mocked(useJianyingTextStyleLab).mockReturnValue({
+			checking: false,
+			error: "",
+			refresh: vi.fn(),
+			result: {
+				...result,
+				styles: [{ ...result.styles[1], runtimeReference: reference }],
+			},
+		});
+		const onChange = vi.fn();
+		render(
+			<CoverTextStyleLibrary
+				layer={layer}
+				canvas={canvas}
+				disabled={false}
+				onChange={onChange}
+				onError={vi.fn()}
+			/>
+		);
+		fireEvent.click(screen.getByRole("button", { name: "花字实验室" }));
+		fireEvent.click(screen.getByTestId("cover-word-art-unsupported"));
+		expect(onChange).toHaveBeenCalledWith(
+			expect.objectContaining({
+				jianyingTextStyle: reference,
+				nativeFrameTime: 1,
+			})
+		);
+		expect(onChange.mock.lastCall?.[0]).not.toHaveProperty("content");
 	});
 	it("never applies without a selected layer", () => {
 		const onChange = vi.fn();
