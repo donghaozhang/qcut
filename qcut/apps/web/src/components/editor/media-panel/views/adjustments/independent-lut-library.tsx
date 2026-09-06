@@ -13,6 +13,7 @@ import { useJianyingFilterThumbnail } from "./use-jianying-filter-thumbnail";
 
 const PAGE_SIZE = 36;
 const RENDERER_LABELS = {
+	"cinematic-soft-glow": "独立 CPU · 待验证",
 	"skin-dual-lut": "双 LUT · 本地模型",
 	fog: "雾化 · 4 Pass",
 	lut: "3D LUT",
@@ -47,7 +48,7 @@ function IndependentLutTile({
 	return (
 		<button
 			type="button"
-			aria-label={`应用 ${card.title} QCut Metal`}
+			aria-label={`应用 ${card.title} QCut ${card.independentKind === "cinematic-soft-glow" ? "CPU" : "Metal"}`}
 			disabled={disabled}
 			className="min-w-0 overflow-hidden rounded-md border border-border text-left hover:border-primary disabled:opacity-50"
 			onClick={() => onApply(card)}
@@ -145,8 +146,9 @@ export function IndependentLutLibrary({
 	const current = Math.min(page, pages - 1);
 	const visible = matches.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
 	const active =
-		activeEffect?.name.endsWith(" · QCut Metal") &&
-		activeEffect.name !== "迷雾 · QCut Metal"
+		(activeEffect?.name.endsWith(" · QCut Metal") &&
+			activeEffect.name !== "迷雾 · QCut Metal") ||
+		activeEffect?.name === "电影柔光 · QCut CPU"
 			? activeEffect
 			: undefined;
 	const apply = async (card: JianyingFilterCatalogCard) => {
