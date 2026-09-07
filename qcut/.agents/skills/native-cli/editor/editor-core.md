@@ -10,15 +10,21 @@ Core `editor:*` commands for controlling a running QCut desktop instance. Comman
 ## Quick Start
 
 ```bash
-# Start QCut first
-bun run electron:dev
+# Start QCut first (packaged app, or from a source checkout)
+bun run electron
 
-# Run editor commands
-qcut editor:<command> [options]
+# Run editor commands: three-level group syntax, or the legacy colon form
+qcut editor <area> <action> [options]      # e.g. qcut editor timeline export --project-id <id> --json
+qcut editor:<area>:<action> [options]      # e.g. qcut editor:timeline:export --project-id <id> --json
 
 # Check connection
-qcut editor:health
+qcut editor health
 ```
+
+Editor commands are split across these files:
+
+- [editor-media.md](editor-media.md), [editor-timeline.md](editor-timeline.md), [editor-output.md](editor-output.md), [editor-ai.md](editor-ai.md), [editor-state-control.md](editor-state-control.md), [editor-agent.md](editor-agent.md)
+- [editor-tracks-stickers-search.md](editor-tracks-stickers-search.md) — tracks, element patch, timeline manifests, stickers, transcript search, audio/caption export, keyboard, UI waits, demo runs, and the Moyin/novel helpers
 
 ## Connection Options
 
