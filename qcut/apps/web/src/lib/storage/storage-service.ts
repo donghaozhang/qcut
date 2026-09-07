@@ -220,6 +220,7 @@ class StorageService {
 		const serializedProject: SerializedProject = {
 			id: project.id,
 			name: project.name,
+			cover: project.cover,
 			// Don't save blob URLs as they don't persist across sessions
 			thumbnail: project.thumbnail?.startsWith("blob:")
 				? ""
@@ -264,6 +265,7 @@ class StorageService {
 		return {
 			id: serializedProject.id,
 			name: serializedProject.name,
+			cover: serializedProject.cover,
 			thumbnail: serializedProject.thumbnail,
 			createdAt: new Date(serializedProject.createdAt),
 			updatedAt: new Date(serializedProject.updatedAt),

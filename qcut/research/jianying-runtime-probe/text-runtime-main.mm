@@ -153,6 +153,7 @@ textAnimations() {
                   .studioAnimationParameters = optionalEnvironment(
                       "JY_TEXT_STUDIO_ANIMATION_PARAMETERS"),
                   .text = optionalEnvironment("JY_TEXT_CONTENT"),
+                  .textColor = optionalEnvironment("JY_TEXT_COLOR"),
                   .stickerParams = stickerParameters(),
                   .fontSize = optionalNumberEnvironment<double>(
                       "JY_TEXT_FONT_SIZE", 12.0),

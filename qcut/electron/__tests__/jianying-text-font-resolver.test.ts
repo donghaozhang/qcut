@@ -40,6 +40,32 @@ function catalog({
 }
 
 describe("Jianying text runtime font resolver", () => {
+	it("loads newly retained private fonts without consulting a stale catalog", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-font-private-")
+		);
+		try {
+			const privateCacheRoot = path.join(temporary, "private");
+			await mkdir(privateCacheRoot);
+			const bytes = Buffer.from("newly-retained-font");
+			const sha256 = createHash("sha256").update(bytes).digest("hex");
+			await writeFile(path.join(privateCacheRoot, `${sha256}.ttf`), bytes);
+			const getCatalog = vi.fn();
+			const result = await resolveJianyingTextRuntimeFont({
+				fontAssetId: `sha256:${sha256}`,
+				privateCacheRoot,
+				persistentCacheRoot: path.join(temporary, "native"),
+				getCatalog,
+				fallbackCandidates: [],
+			});
+			expect(result.state).toBe("requested");
+			expect(result.diagnostics).toEqual([]);
+			expect(await readFile(result.filePath)).toEqual(bytes);
+			expect(getCatalog).not.toHaveBeenCalled();
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
+	});
 	afterEach(() => {
 		vi.unstubAllEnvs();
 	});

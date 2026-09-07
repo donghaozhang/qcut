@@ -143,6 +143,7 @@ describe("TimelineTrackLabel", () => {
 		expect(screen.getByTestId("main-track-cover-badge")).toHaveTextContent(
 			"Cover"
 		);
+		expect(screen.getByTestId("main-track-cover-badge").tagName).toBe("BUTTON");
 
 		rerender(<TimelineTrackLabel track={secondaryTrack} {...commonProps} />);
 

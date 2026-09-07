@@ -9,6 +9,7 @@ import {
 	resolveLicenseServerDevelopmentCacheDirectory,
 } from "../../electron/license-server-build-config";
 import { createLicenseServerBuildPlugin } from "./license-server-build-plugin";
+import { jianyingCoverCachePlugin } from "./jianying-cover-cache-plugin";
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
@@ -80,6 +81,7 @@ export default defineConfig(({ mode }) => {
 			],
 		},
 		plugins: [
+			jianyingCoverCachePlugin(),
 			createLicenseServerBuildPlugin({
 				buildConfig: licenseServerBuildConfig,
 			}),

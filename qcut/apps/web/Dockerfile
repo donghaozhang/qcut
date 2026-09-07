@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY package.json package.json
 COPY bun.lock bun.lock
+COPY patches patches
 COPY turbo.json turbo.json
 
 COPY apps/web/package.json apps/web/package.json

@@ -105,6 +105,17 @@ function validateRenderRequest({
 		value: request.reference,
 	});
 	if (!reference) throw new Error("Jianying text reference is invalid.");
+	if (request.textColor !== undefined) {
+		if (
+			typeof request.textColor !== "string" ||
+			!/^#[0-9a-fA-F]{6}$/.test(request.textColor)
+		)
+			throw new Error("Jianying textColor must be a six-digit hex color.");
+		if (reference.packageKind === "ScriptInfoSticker")
+			throw new Error(
+				"Custom textColor is not supported for ScriptInfoSticker."
+			);
+	}
 	if (
 		typeof request.content !== "string" ||
 		request.content.trim().length === 0 ||
@@ -231,6 +242,7 @@ function renderCacheKey({
 				resourceFingerprint: resourceFingerprint ?? null,
 				contentHash: createHash("sha256").update(request.content).digest("hex"),
 				fontAssetId: request.fontAssetId ?? null,
+				textColor: request.textColor?.toLowerCase() ?? null,
 				fontPath,
 				fontSize: request.fontSize,
 				width: Math.round(request.transform.width),
@@ -708,6 +720,7 @@ async function renderUncached({
 				content: request.content,
 				fontPath,
 				fontSize: request.fontSize,
+				textColor: request.textColor,
 			},
 		});
 		await renderJianyingTextRawSequence({

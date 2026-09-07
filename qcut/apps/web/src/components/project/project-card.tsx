@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Calendar, Loader2, MoreHorizontal, Video } from "lucide-react";
+import { Calendar, MoreHorizontal } from "lucide-react";
+import { ProjectThumbnail } from "./project-thumbnail";
 import { DeleteProjectDialog } from "@/components/delete-project-dialog";
 import { RenameProjectDialog } from "@/components/rename-project-dialog";
 import { Button } from "@/components/ui/button";
@@ -59,28 +60,8 @@ export function ProjectCard({
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
-	const [dynamicThumbnail, setDynamicThumbnail] = useState<string | null>(null);
-	const [isLoadingThumbnail, setIsLoadingThumbnail] = useState(true);
 	const [duration, setDuration] = useState<number | null>(null);
 	const { deleteProject, renameProject, duplicateProject } = useProjectStore();
-
-	useEffect(() => {
-		let cancelled = false;
-		setIsLoadingThumbnail(true);
-		void getProjectThumbnail(project.id)
-			.then((thumbnail) => {
-				if (!cancelled) setDynamicThumbnail(thumbnail);
-			})
-			.catch(() => {
-				if (!cancelled) setDynamicThumbnail(null);
-			})
-			.finally(() => {
-				if (!cancelled) setIsLoadingThumbnail(false);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [project.id, getProjectThumbnail]);
 
 	useEffect(() => {
 		if (!getProjectDuration) return;
@@ -150,22 +131,10 @@ export function ProjectCard({
 				)}
 
 				<div className="absolute inset-0 group-hover:brightness-110 transition-[filter] duration-200">
-					{isLoadingThumbnail ? (
-						<div className="w-full h-full bg-gradient-to-br from-muted to-muted/60 dark:from-[hsl(0,0%,18%)] dark:to-[hsl(0,0%,12%)] flex items-center justify-center">
-							<Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
-						</div>
-					) : dynamicThumbnail ? (
-						<img
-							src={dynamicThumbnail}
-							alt="Project thumbnail"
-							loading="lazy"
-							className="w-full h-full object-cover"
-						/>
-					) : (
-						<div className="w-full h-full bg-gradient-to-br from-muted to-muted/60 dark:from-[hsl(0,0%,18%)] dark:to-[hsl(0,0%,12%)] flex items-center justify-center">
-							<Video className="h-6 w-6 shrink-0 text-muted-foreground" />
-						</div>
-					)}
+					<ProjectThumbnail
+						project={project}
+						getProjectThumbnail={getProjectThumbnail}
+					/>
 				</div>
 
 				{duration !== null && duration > 0 && (

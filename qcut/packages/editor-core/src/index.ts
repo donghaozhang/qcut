@@ -553,6 +553,7 @@ export {
 
 // Assets — shared manifest, catalog, licensing, and cache state
 export {
+	normalizeJianyingTextRuntimeReference,
 	ASSET_FILE_ROLES,
 	ASSET_KINDS,
 	ASSET_MANIFEST_SCHEMA_VERSION,

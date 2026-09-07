@@ -340,6 +340,9 @@
     "electron",
     "ffmpeg-static",
   ],
+  "patchedDependencies": {
+    "app-builder-lib@26.8.1": "patches/app-builder-lib@26.8.1.patch",
+  },
   "overrides": {
     "@remotion/player": "4.0.497",
     "@remotion/renderer": "4.0.497",

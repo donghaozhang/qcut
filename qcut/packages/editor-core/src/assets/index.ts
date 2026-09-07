@@ -28,3 +28,4 @@ export {
 	type AssetRuntimeFileState,
 	type AssetRuntimeState,
 } from "./asset-manifest.js";
+export { normalizeJianyingTextRuntimeReference } from "./jianying-text-reference.js";

@@ -10,6 +10,11 @@ import type {
 	JianyingFontSourceKind,
 } from "./jianying-font-lab-contract.js";
 import { makeJianyingFontBrowserCompatible } from "./jianying-font-browser-compatibility.js";
+import {
+	jianyingPrivateFontRoot,
+	readPrivateJianyingFont,
+	retainPrivateJianyingFont,
+} from "./jianying-font-private-cache.js";
 
 const MAXIMUM_FONT_BYTES = 128 * 1024 * 1024;
 const FONT_FILE_PATTERN = /\.(?:otf|ttf)$/i;
@@ -102,6 +107,19 @@ export function getDefaultJianyingFontSearchRoots(): JianyingFontSearchRoot[] {
 		"Cache"
 	);
 	return [
+		{ path: jianyingPrivateFontRoot(), sourceKind: "qcut-cache" },
+		{
+			path: join(
+				homedir(),
+				"Library",
+				"Application Support",
+				"QCut",
+				"PrivateAssets",
+				"JianyingText",
+				"Cache"
+			),
+			sourceKind: "qcut-cache",
+		},
 		{ path: join(cacheRoot, "effect"), sourceKind: "effect" },
 		{
 			path: join(cacheRoot, "artistEffect"),
@@ -330,9 +348,18 @@ export function summarizeJianyingFontCatalog({
 
 export async function readVerifiedJianyingFontBytes({
 	entry,
+	privateCacheRoot = jianyingPrivateFontRoot(),
 }: {
 	entry: JianyingFontCatalogEntry;
+	privateCacheRoot?: string;
 }): Promise<Buffer> {
+	const identity = {
+		sha256: entry.sha256,
+		format: entry.format,
+		root: privateCacheRoot,
+	};
+	const retained = await readPrivateJianyingFont(identity);
+	if (retained) return makeJianyingFontBrowserCompatible({ bytes: retained });
 	const attempts = await Promise.all(
 		entry.filePaths.map(async (filePath) => {
 			try {
@@ -348,6 +375,8 @@ export async function readVerifiedJianyingFontBytes({
 	);
 	const bytes = attempts.find((candidate) => candidate !== null);
 	if (!bytes) throw new Error("本机剪映字体缓存已经变化或消失");
+	// Retain original bytes before browser compatibility rewrites change their digest.
+	await retainPrivateJianyingFont({ ...identity, bytes });
 	return makeJianyingFontBrowserCompatible({ bytes });
 }
 

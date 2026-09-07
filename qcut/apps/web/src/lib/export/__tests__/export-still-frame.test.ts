@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RESTRICTED_MEDIA_EXPORT_MESSAGE } from "../../../../../../electron/types/restricted-media-export-policy";
-import { exportStillFrame } from "../export-still-frame";
+import { captureStillFrame, exportStillFrame } from "../export-still-frame";
 
 const mocks = vi.hoisted(() => ({
 	renderFrame: vi.fn(async () => {}),
@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 		backgroundType: "color",
 	} as Record<string, unknown> | null,
 	mediaItems: [] as Array<Record<string, unknown>>,
+	isLoading: false,
 	overlayStickers: [] as Array<{ mediaItemId: string }>,
 	tracks: [] as Array<Record<string, unknown>>,
 }));
@@ -26,6 +27,9 @@ vi.mock("@/lib/export/export-engine-renderer", () => ({
 }));
 vi.mock("@/lib/export/export-output", () => ({
 	saveExportedFile: mocks.saveExportedFile,
+}));
+vi.mock("@/stores/ai/effects-store", () => ({
+	useEffectsStore: { getState: () => ({ getElementEffects: () => [] }) },
 }));
 vi.mock("@/lib/timeline/compound-media", () => ({
 	expandCompoundMediaTracks: ({ tracks }: { tracks: unknown[] }) => tracks,
@@ -37,7 +41,12 @@ vi.mock("@/stores/timeline/timeline-store", () => ({
 	useTimelineStore: { getState: () => ({ tracks: mocks.tracks }) },
 }));
 vi.mock("@/stores/media-store", () => ({
-	useMediaStore: { getState: () => ({ mediaItems: mocks.mediaItems }) },
+	useMediaStore: {
+		getState: () => ({
+			mediaItems: mocks.mediaItems,
+			isLoading: mocks.isLoading,
+		}),
+	},
 }));
 vi.mock("@/stores/stickers-overlay-store", () => ({
 	useStickersOverlayStore: {
@@ -60,6 +69,7 @@ describe("exportStillFrame", () => {
 			backgroundType: "color",
 		};
 		mocks.mediaItems = [];
+		mocks.isLoading = false;
 		mocks.overlayStickers = [];
 		mocks.tracks = [];
 		HTMLCanvasElement.prototype.toBlob = function toBlob(callback) {
@@ -68,6 +78,89 @@ describe("exportStillFrame", () => {
 		HTMLCanvasElement.prototype.getContext = vi.fn(
 			() => ({}) as unknown as CanvasRenderingContext2D
 		) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+	});
+
+	it("captures an in-memory composition without opening a save dialog", async () => {
+		const result = await captureStillFrame();
+		expect(result).toMatchObject({
+			ok: true,
+			projectId: "p1",
+			frame: 75,
+			fps: 30,
+			timeSeconds: 2.5,
+			width: 1920,
+			height: 1080,
+		});
+		if (result.ok) expect(result.blob.type).toBe("image/png");
+		expect(mocks.saveExportedFile).not.toHaveBeenCalled();
+	});
+	it("refuses capture while project media is loading", async () => {
+		mocks.isLoading = true;
+		expect(await captureStillFrame()).toMatchObject({
+			ok: false,
+			error: expect.stringContaining("still loading"),
+		});
+		expect(mocks.renderFrame).not.toHaveBeenCalled();
+	});
+	it("samples an explicit frame without changing the playback position", async () => {
+		expect(await captureStillFrame({ timeSeconds: 1.012 })).toMatchObject({
+			ok: true,
+			frame: 30,
+			timeSeconds: 1,
+		});
+		expect(await captureStillFrame()).toMatchObject({
+			ok: true,
+			frame: 75,
+			timeSeconds: 2.5,
+		});
+		expect(mocks.saveExportedFile).not.toHaveBeenCalled();
+	});
+	it("refuses missing visible media rather than silently producing a black frame", async () => {
+		mocks.tracks = [
+			{
+				id: "main",
+				type: "media",
+				isMain: true,
+				elements: [
+					{
+						id: "clip",
+						type: "media",
+						mediaId: "missing",
+						name: "Missing clip",
+						startTime: 0,
+						duration: 5,
+						trimStart: 0,
+						trimEnd: 0,
+					},
+				],
+			},
+		];
+		expect(await captureStillFrame()).toMatchObject({
+			ok: false,
+			error: expect.stringContaining("Frame media is missing"),
+		});
+		expect(mocks.renderFrame).not.toHaveBeenCalled();
+	});
+	it("does not require sources from hidden tracks", async () => {
+		mocks.tracks = [
+			{
+				id: "main",
+				type: "media",
+				hidden: true,
+				elements: [
+					{
+						id: "clip",
+						type: "media",
+						mediaId: "missing",
+						startTime: 0,
+						duration: 5,
+						trimStart: 0,
+						trimEnd: 0,
+					},
+				],
+			},
+		];
+		expect(await captureStillFrame()).toMatchObject({ ok: true });
 	});
 
 	it("renders at project resolution and saves a sanitized PNG name", async () => {

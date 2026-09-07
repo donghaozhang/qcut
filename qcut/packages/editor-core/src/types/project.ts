@@ -6,6 +6,7 @@
  */
 
 import type { CanvasSize } from "./editor.js";
+import type { ProjectCoverBindingV1 } from "../cover/model.js";
 import type { ProjectAudioMixSettings } from "./timeline.js";
 import type { DraftInteropDocumentV1 } from "../draft-interop/document.js";
 import type { ForeignDraftEnvelopeV1 } from "../draft-interop/foreign-envelope.js";
@@ -73,6 +74,7 @@ export interface TProject {
 	id: string;
 	name: string;
 	thumbnail: string;
+	cover?: ProjectCoverBindingV1;
 	createdAt: Date;
 	updatedAt: Date;
 	/** Folder this project lives in on the studio page (null/undefined = root). */
