@@ -3,6 +3,7 @@ import type {
 	AgentKeyboardResult,
 	AgentKeyboardTypeRequest,
 	AgentPointerClickRequest,
+	AgentPointerDragMode,
 	AgentPointerDragRequest,
 	AgentPointerMoveRequest,
 	AgentPointerResult,
@@ -121,6 +122,30 @@ export function parseAgentPointerInputMode({
 	);
 }
 
+const AGENT_POINTER_DRAG_MODES: readonly AgentPointerDragMode[] = [
+	"auto",
+	"html5",
+	"mouse",
+];
+
+export function parseAgentPointerDragMode({
+	value,
+}: {
+	value: unknown;
+}): AgentPointerDragMode | undefined {
+	if (value === undefined) return undefined;
+	if (
+		typeof value === "string" &&
+		(AGENT_POINTER_DRAG_MODES as readonly string[]).includes(value)
+	) {
+		return value as AgentPointerDragMode;
+	}
+	throw new HttpError(
+		400,
+		"Pointer 'dnd' must be 'auto', 'html5', or 'mouse'."
+	);
+}
+
 function parseTargetRequest({
 	body,
 }: {
@@ -157,10 +182,15 @@ function parseDragRequest({
 		field: "releaseDelayMs",
 	});
 	const steps = parseFiniteNumber({ value: parsed.steps, field: "steps" });
+	const dragStartTimeoutMs = parseFiniteNumber({
+		value: parsed.dragStartTimeoutMs,
+		field: "dragStartTimeoutMs",
+	});
 	for (const [field, value] of [
 		["holdMs", holdMs],
 		["durationMs", durationMs],
 		["releaseDelayMs", releaseDelayMs],
+		["dragStartTimeoutMs", dragStartTimeoutMs],
 	] as const) {
 		if (value !== undefined && value < 0) {
 			throw new HttpError(400, `Pointer '${field}' must be >= 0.`);
@@ -196,6 +226,8 @@ function parseDragRequest({
 		durationMs,
 		releaseDelayMs,
 		steps,
+		dnd: parseAgentPointerDragMode({ value: parsed.dnd }),
+		dragStartTimeoutMs,
 	};
 }
 
