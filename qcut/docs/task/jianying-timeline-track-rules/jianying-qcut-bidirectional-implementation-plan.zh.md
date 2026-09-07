@@ -4,9 +4,11 @@
 
 **状态：** 实施设计，尚未全部实现  
 **日期：** 2026-08-04  
-**最后核验代码：** `0f81e11ff`
+**最后核验代码：** `3b368ec5e`
 
 **依赖文档：** [剪映时间线轨道规则核验](./timeline-track-rules.zh.md)、[QCut 时间线规则差距与修复计划](./qcut-timeline-rule-gap-analysis.zh.md)
+
+**剩余工作：** [剪映草稿互通剩余工作清单](./jianying-draft-interop-remaining-work.zh.md)
 
 ## 实施进度
 
