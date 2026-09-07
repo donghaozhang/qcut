@@ -4,11 +4,21 @@
 
 | Group | Use it for | Examples |
 | --- | --- | --- |
-| `gen` | Images, videos, speech, music, avatars, grids | `gen image`, `gen video`, `gen tts` |
-| `analyze` | Transcription, media analysis, translation, search | `analyze transcribe`, `analyze video` |
-| `edit` | AutoClip, upscale, cutout, filters, audio cleanup | `edit autoclip`, `edit upscale-video` |
+| `gen` | Images, videos, speech, music, voice conversion and cloning, avatars, Remotion | `gen image`, `gen video`, `gen tts`, `gen music` |
+| `analyze` | Transcription, media analysis and review, scene indexing, translation, consistency checks, queries | `analyze transcribe`, `analyze video`, `analyze index` |
+| `edit` | AutoClip, upscale, motion transfer, cutout, portrait presets, subtitles, audio cleanup, deflicker, sticker and sound search, edit planning | `edit autoclip`, `edit upscale-video`, `edit portrait-filter` |
+| `compose` | Snapshot, plan, validate, apply, render, and package multi-resource edits from a manifest | `compose validate`, `compose render`, `compose project` |
+| `filter-lab` | Browse, render, stack, and verify locally cached filters; `render-independent` uses QCut's own Metal renderer | `filter-lab catalog-independent`, `filter-lab render` |
+| `effect-lab`, `text-lab`, `sticker-lab`, `transition` | Local labs for cached video effects, flower text and text animations, sticker references, and Jianying-runtime transitions | `effect-lab search`, `text-lab render`, `transition doctor` |
+| `draft` | Guarded Jianying Professional draft inspect, import, verify, and export | `draft inspect`, `draft import` |
 | `flow` | YAML and ViMax production workflows | `flow run`, `flow script2video` |
-| `system` | Models, auth status, keys, setup, project utilities | `system models`, `system doctor` |
+| `instances` | List running QCut editors and pick the CLI target | `instances list`, `instances use --port <port>` |
+| `system` | Update, models, auth status, keys, setup, project utilities, diagnostics | `system update --check`, `system models`, `system doctor` |
+| `editor` | Control a running editor (`editor <area> <action>`); use the qcut-editor skill | `editor timeline export`, `editor track list` |
+
+Labs and `draft` commands read caches or drafts that already exist on the
+user's machine. `editor`, `compose snapshot/apply`, and `draft import/export`
+need the desktop app running; everything else works without it.
 
 Use structured help at every level:
 
@@ -48,6 +58,17 @@ qcut system doctor --json
 qcut system models --json
 qcut gen video --help --json
 ```
+
+### Render a compose manifest without opening the editor
+
+```bash
+qcut compose validate --config edit.qcut-compose.json --json
+qcut compose render --config edit.qcut-compose.json --output final.mp4 --dry-run --json
+qcut compose render --config edit.qcut-compose.json --output final.mp4 --json
+```
+
+Validate first; the dry run reports which filter cards, stickers, and sounds
+resolved locally before anything is rendered.
 
 ### Output handling
 
