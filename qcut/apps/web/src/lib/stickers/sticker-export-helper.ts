@@ -60,6 +60,11 @@ export interface StickerRenderResult {
 	failed: Array<{ stickerId: string; error: string }>;
 }
 
+export interface PreparedStickerRender {
+	stickerId: string;
+	draw: ({ ctx }: { ctx: CanvasRenderingContext2D }) => void;
+}
+
 export class StickerRenderFailureError extends Error {
 	readonly failures: StickerRenderResult["failed"];
 
@@ -91,6 +96,7 @@ function requireRuntimeTimelineElement({
  */
 export class StickerExportHelper {
 	private imageCache = new Map<string, HTMLImageElement>();
+	private imageLoads = new Map<string, Promise<HTMLImageElement>>();
 	private preloadedImages = new Map<string, HTMLImageElement>();
 	private directGifAssetResolvers = new WeakMap<
 		MediaItem,
@@ -168,19 +174,19 @@ export class StickerExportHelper {
 			result.attempted++;
 
 			try {
-				await this.renderSticker(
+				await this.renderSticker({
 					ctx,
 					sticker,
 					mediaItem,
-					mediaItems,
+					mediaItemsById: mediaItems,
 					canvasWidth,
 					canvasHeight,
-					options.currentTime ?? 0,
-					options.fps ?? 30,
+					currentTime: options.currentTime ?? 0,
+					fps: options.fps ?? 30,
 					timelineElement,
-					options.tracks,
-					options.planarTrackingSidecar
-				);
+					tracks: options.tracks,
+					planarTrackingSidecar: options.planarTrackingSidecar,
+				});
 				result.successful++;
 			} catch (error) {
 				const errorMessage =
@@ -226,19 +232,69 @@ export class StickerExportHelper {
 	/**
 	 * Render individual sticker to canvas
 	 */
-	private async renderSticker(
-		ctx: CanvasRenderingContext2D,
-		sticker: OverlaySticker,
-		mediaItem: MediaItem,
-		mediaItemsById: ReadonlyMap<string, MediaItem>,
-		canvasWidth: number,
-		canvasHeight: number,
-		currentTime: number,
-		fps: number,
-		timelineElement?: StickerElement,
-		tracks?: TimelineTrack[],
-		planarTrackingSidecar?: PlanarTrackingSidecarV1
-	): Promise<void> {
+	private async renderSticker({
+		ctx,
+		sticker,
+		mediaItem,
+		mediaItemsById,
+		canvasWidth,
+		canvasHeight,
+		currentTime,
+		fps,
+		timelineElement,
+		tracks,
+		planarTrackingSidecar,
+	}: {
+		ctx: CanvasRenderingContext2D;
+		sticker: OverlaySticker;
+		mediaItem: MediaItem;
+		mediaItemsById: ReadonlyMap<string, MediaItem>;
+		canvasWidth: number;
+		canvasHeight: number;
+		currentTime: number;
+		fps: number;
+		timelineElement?: StickerElement;
+		tracks?: TimelineTrack[];
+		planarTrackingSidecar?: PlanarTrackingSidecarV1;
+	}): Promise<void> {
+		const prepared = await this.prepareStickerFrame({
+			sticker,
+			mediaItem,
+			mediaItemsById,
+			canvasWidth,
+			canvasHeight,
+			currentTime,
+			fps,
+			timelineElement,
+			tracks,
+			planarTrackingSidecar,
+		});
+		prepared?.draw({ ctx });
+	}
+
+	async prepareStickerFrame({
+		sticker,
+		mediaItem,
+		mediaItemsById,
+		canvasWidth,
+		canvasHeight,
+		currentTime,
+		fps,
+		timelineElement,
+		tracks,
+		planarTrackingSidecar,
+	}: {
+		sticker: OverlaySticker;
+		mediaItem: MediaItem;
+		mediaItemsById: ReadonlyMap<string, MediaItem>;
+		canvasWidth: number;
+		canvasHeight: number;
+		currentTime: number;
+		fps: number;
+		timelineElement?: StickerElement;
+		tracks?: TimelineTrack[];
+		planarTrackingSidecar?: PlanarTrackingSidecarV1;
+	}): Promise<PreparedStickerRender | null> {
 		const animationElement =
 			timelineElement ?? getStickerTiming(sticker.id)?.element;
 		const stickerRuntime = resolveStickerRuntimeDescriptor({
@@ -275,7 +331,7 @@ export class StickerExportHelper {
 					rotation: 0,
 				};
 		const effectiveOpacity = resolvedSticker.opacity * animation.opacity;
-		if (effectiveOpacity <= 0) return;
+		if (effectiveOpacity <= 0) return null;
 
 		let image: CanvasImageSource;
 		let sourceWidth: number | undefined;
@@ -295,7 +351,7 @@ export class StickerExportHelper {
 				timelineTimeSeconds: currentTime,
 			});
 			exportProfiler.count("sticker-runtime-frames");
-			if (!runtimeFrame.active) return;
+			if (!runtimeFrame.active) return null;
 			image = runtimeFrame.image;
 			sourceWidth = runtimeFrame.width;
 			sourceHeight = runtimeFrame.height;
@@ -319,74 +375,72 @@ export class StickerExportHelper {
 			canvasWidth,
 			canvasHeight,
 		});
-		// Save context state
-		ctx.save();
+		return {
+			stickerId: sticker.id,
+			draw: ({ ctx }) => {
+				ctx.save();
+				ctx.globalAlpha = effectiveOpacity;
+				ctx.translate(
+					geometry.centerX + animation.offsetX,
+					geometry.centerY + animation.offsetY
+				);
+				const rotation = resolvedSticker.rotation + animation.rotation;
+				if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
+				if (animation.scale !== 1) {
+					ctx.scale(animation.scale, animation.scale);
+				}
 
-		// Apply transformations
-		ctx.globalAlpha = effectiveOpacity;
-
-		ctx.translate(
-			geometry.centerX + animation.offsetX,
-			geometry.centerY + animation.offsetY
-		);
-
-		const rotation = resolvedSticker.rotation + animation.rotation;
-		if (rotation !== 0) {
-			ctx.rotate((rotation * Math.PI) / 180);
-		}
-		if (animation.scale !== 1) {
-			ctx.scale(animation.scale, animation.scale);
-		}
-
-		try {
-			drawStickerWithPerspective({
-				ctx,
-				image,
-				sourceWidth: sourceWidth || geometry.pixelWidth,
-				sourceHeight: sourceHeight || geometry.pixelHeight,
-				width: geometry.pixelWidth,
-				height: geometry.pixelHeight,
-				perspective: resolvedSticker.perspective ?? DEFAULT_STICKER_PERSPECTIVE,
-				maintainAspectRatio: resolvedSticker.maintainAspectRatio,
-			});
-		} catch (error) {
-			// Restore context before re-throwing
-			ctx.restore();
-			throw new Error(
-				`Canvas drawImage failed for sticker: ${error instanceof Error ? error.message : String(error)}`
-			);
-		}
-
-		// Restore context state
-		ctx.restore();
+				try {
+					drawStickerWithPerspective({
+						ctx,
+						image,
+						sourceWidth: sourceWidth || geometry.pixelWidth,
+						sourceHeight: sourceHeight || geometry.pixelHeight,
+						width: geometry.pixelWidth,
+						height: geometry.pixelHeight,
+						perspective:
+							resolvedSticker.perspective ?? DEFAULT_STICKER_PERSPECTIVE,
+						maintainAspectRatio: resolvedSticker.maintainAspectRatio,
+					});
+				} catch (error) {
+					throw new Error(
+						`Canvas drawImage failed for sticker: ${error instanceof Error ? error.message : String(error)}`
+					);
+				} finally {
+					ctx.restore();
+				}
+			},
+		};
 	}
 
 	/**
 	 * Load and cache image
 	 */
 	private async loadImage(url: string): Promise<HTMLImageElement> {
-		// Check cache first
-		if (this.imageCache.has(url)) {
-			const cached = this.imageCache.get(url)!;
-			return cached;
-		}
+		const cached = this.imageCache.get(url);
+		if (cached) return cached;
+		const pending = this.imageLoads.get(url);
+		if (pending) return pending;
 
-		// Load new image
-		return new Promise((resolve, reject) => {
+		const load = new Promise<HTMLImageElement>((resolve, reject) => {
 			const img = new Image();
 			img.crossOrigin = "anonymous";
 
 			img.onload = () => {
 				this.imageCache.set(url, img);
+				this.imageLoads.delete(url);
 				resolve(img);
 			};
 
-			img.onerror = (error) => {
+			img.onerror = () => {
+				this.imageLoads.delete(url);
 				reject(new Error(`Failed to load image: ${url}`));
 			};
 
 			img.src = url;
 		});
+		this.imageLoads.set(url, load);
+		return load;
 	}
 
 	/**
@@ -394,6 +448,7 @@ export class StickerExportHelper {
 	 */
 	clearCache(): void {
 		this.imageCache.clear();
+		this.imageLoads.clear();
 		this.directGifAssetResolvers = new WeakMap();
 	}
 

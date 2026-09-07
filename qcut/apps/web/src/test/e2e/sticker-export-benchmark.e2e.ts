@@ -3,7 +3,8 @@
  *
  * Four exports over the same background clip through the production
  * renderer-muxer route: no stickers (control), one static sticker, three
- * overlapping static stickers, and one animated direct-GIF runtime sticker.
+ * overlapping static stickers, one animated direct-GIF runtime sticker, and
+ * six independent animated runtime stickers.
  *
  * Alongside timings the run gates what a sticker optimization must not move:
  * frame count and duration, the sticker's own pixels inside its region across
@@ -15,7 +16,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { parseDirectGifRuntimeDescriptor } from "../../../../../packages/editor-core/src/sticker-lab/runtime-gif";
@@ -57,6 +58,7 @@ const SCENARIOS: readonly StickerScenarioName[] = [
 	"single-static",
 	"three-overlapping",
 	"animated-runtime",
+	"six-animated-runtime",
 ];
 
 /**
@@ -83,10 +85,13 @@ test("measures sticker export cost against a no-sticker control", async ({
 	const workDir = await mkdtemp(path.join(tmpdir(), "qcut-sticker-bench-"));
 	await mkdir(EVIDENCE_DIR, { recursive: true });
 
+	const gifPaths = Array.from({ length: 6 }, (_, index) =>
+		path.join(workDir, `sticker-bench-cycle-${index}.gif`)
+	);
 	const sources = {
 		video: path.join(workDir, "sticker-bench-bg.mp4"),
 		sticker: path.join(workDir, "sticker-bench-still.png"),
-		gif: path.join(workDir, "sticker-bench-cycle.gif"),
+		gifs: gifPaths,
 	};
 	const outputs: Partial<Record<StickerScenarioName, string>> = {};
 
@@ -98,15 +103,26 @@ test("measures sticker export cost against a no-sticker control", async ({
 			seconds: STICKER_BENCHMARK_SECONDS,
 		});
 		await generateStickerStill({ filePath: sources.sticker });
-		await generateColorCycleGif({ filePath: sources.gif });
-		const stickerRuntime = parseDirectGifRuntimeDescriptor({
-			bytes: new Uint8Array(await readFile(sources.gif)),
-		});
-		expect(stickerRuntime.frames.length).toBeGreaterThan(1);
+		const firstGifPath = sources.gifs[0];
+		if (!firstGifPath) throw new Error("Missing primary GIF fixture path");
+		await generateColorCycleGif({ filePath: firstGifPath });
+		await Promise.all(
+			sources.gifs.slice(1).map((gifPath) => copyFile(firstGifPath, gifPath))
+		);
+		const stickerRuntimes = await Promise.all(
+			sources.gifs.map(async (gifPath) =>
+				parseDirectGifRuntimeDescriptor({
+					bytes: new Uint8Array(await readFile(gifPath)),
+				})
+			)
+		);
+		for (const stickerRuntime of stickerRuntimes) {
+			expect(stickerRuntime.frames.length).toBeGreaterThan(1);
+		}
 
 		await page.setViewportSize({ width: 1440, height: 1000 });
 		await createTestProject(page, "Sticker Export Benchmark");
-		for (const filePath of [sources.video, sources.sticker, sources.gif]) {
+		for (const filePath of [sources.video, sources.sticker, ...sources.gifs]) {
 			await uploadTestMedia(page, filePath);
 		}
 		await waitForLocalPaths({
@@ -124,8 +140,8 @@ test("measures sticker export cost against a no-sticker control", async ({
 			scenario: "no-stickers",
 			videoName: path.basename(sources.video),
 			stickerName: path.basename(sources.sticker),
-			gifName: path.basename(sources.gif),
-			stickerRuntime,
+			gifNames: sources.gifs.map((gifPath) => path.basename(gifPath)),
+			stickerRuntimes,
 		});
 		await measureStickerScenario({
 			apiPort,
@@ -153,8 +169,8 @@ test("measures sticker export cost against a no-sticker control", async ({
 				scenario,
 				videoName: path.basename(sources.video),
 				stickerName: path.basename(sources.sticker),
-				gifName: path.basename(sources.gif),
-				stickerRuntime,
+				gifNames: sources.gifs.map((gifPath) => path.basename(gifPath)),
+				stickerRuntimes,
 			});
 			expect(duration).toBeCloseTo(STICKER_BENCHMARK_SECONDS, 2);
 			expect(stickerCount).toBe(
@@ -162,7 +178,9 @@ test("measures sticker export cost against a no-sticker control", async ({
 					? 0
 					: scenario === "three-overlapping"
 						? 3
-						: 1
+						: scenario === "six-animated-runtime"
+							? 6
+							: 1
 			);
 
 			const outputPath = keepOutputs

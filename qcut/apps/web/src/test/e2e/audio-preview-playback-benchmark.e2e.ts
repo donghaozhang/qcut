@@ -10,7 +10,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect } from "@playwright/test";
@@ -35,6 +35,9 @@ const CLIP_SECONDS = 6;
 const PLAY_WINDOW_SECONDS = 3;
 const SEEK_TIMES = [0.5, 1.5, 2.5, 3.5] as const;
 const MAX_CLIPS = 16;
+const BENCHMARK_LABEL = process.env.QCUT_BENCHMARK_LABEL?.trim() || "current";
+const EXPECT_ZERO_UNPITCHED_WORKLETS =
+	process.env.QCUT_EXPECT_ZERO_UNPITCHED_WORKLETS === "1";
 
 /** Deterministic tones, one per layer, so layers stay distinguishable. */
 function generateTone({ index }: { index: number }): string {
@@ -102,6 +105,9 @@ test.describe("realtime audio preview", () => {
 			paramMs: number;
 			graphsCreated: number;
 			contexts: number;
+			audioWorkletModulesTotal: number;
+			audioWorkletNodeConnectsTotal: number;
+			audioWorkletNodesTotal: number;
 			clockHz: number;
 			seekSetTarget: number;
 			resumeSetTarget: number;
@@ -291,6 +297,10 @@ test.describe("realtime audio preview", () => {
 			);
 
 			results.push({
+				audioWorkletModulesTotal: playbackStats.audioWorkletModulesTotal,
+				audioWorkletNodeConnectsTotal:
+					playbackStats.audioWorkletNodeConnectsTotal,
+				audioWorkletNodesTotal: playbackStats.audioWorkletNodesTotal,
 				clips: scenario.clips,
 				clockHz: clock.clockHz,
 				contexts: playbackStats.audioContexts,
@@ -308,12 +318,46 @@ test.describe("realtime audio preview", () => {
 		}
 
 		console.log(`[audio-preview] SUMMARY ${JSON.stringify(results)}`);
+		const reportDirectory = path.resolve(
+			"output/playwright/audio-preview-benchmark"
+		);
+		mkdirSync(reportDirectory, { recursive: true });
+		const reportPath = path.join(
+			reportDirectory,
+			`audio-preview-${BENCHMARK_LABEL.replaceAll(/[^a-zA-Z0-9._-]/g, "-")}.json`
+		);
+		writeFileSync(
+			reportPath,
+			JSON.stringify(
+				{
+					kind: "qcut-audio-preview-benchmark-v1",
+					label: BENCHMARK_LABEL,
+					recordedAt: new Date().toISOString(),
+					results,
+					schemaVersion: 1,
+				},
+				null,
+				2
+			)
+		);
+		console.log(`[audio-preview] report: ${reportPath}`);
 
 		const byLabel = new Map(results.map((entry) => [entry.label, entry]));
 		const single = byLabel.get("single-audio");
 		const eight = byLabel.get("eight-overlapping");
 		const silent = byLabel.get("eight-silent-control");
 		if (!single || !eight || !silent) throw new Error("Missing scenario");
+		if (EXPECT_ZERO_UNPITCHED_WORKLETS) {
+			const finalResult = results[results.length - 1];
+			expect(
+				finalResult.audioWorkletModulesTotal,
+				"default unpitched playback must not register pitch worklets"
+			).toBe(0);
+			expect(
+				finalResult.audioWorkletNodeConnectsTotal,
+				"default unpitched playback must not connect pitch worklets"
+			).toBe(0);
+		}
 
 		// The probe must have seen real graph work.
 		expect(single.setTargetPlayback).toBeGreaterThan(0);
