@@ -61,6 +61,36 @@ export interface AgentPointerClickRequest
 	durationMs?: number;
 }
 
+/**
+ * How a drag should treat HTML5 drag-and-drop sources.
+ * - `auto`: intercept a drag the page starts and finish it with CDP drag
+ *   events; otherwise fall back to a plain mouse drag.
+ * - `html5`: require the page to start a drag; fail if it does not.
+ * - `mouse`: never intercept; dispatch mouse events only.
+ */
+export type AgentPointerDragMode = "auto" | "html5" | "mouse";
+
+export interface AgentPointerDragDataItem {
+	mimeType: string;
+	data: string;
+}
+
+/** Drag payload captured from `Input.dragIntercepted` and replayed on drop. */
+export interface AgentPointerDragData {
+	items: AgentPointerDragDataItem[];
+	files?: string[];
+	dragOperationsMask: number;
+}
+
+export interface AgentPointerDragOutcome {
+	mode: AgentPointerDragMode;
+	intercepted: boolean;
+	backend: "cdp-dispatch-drag-event" | "mouse";
+	mimeTypes: string[];
+	fileCount: number;
+	dragOperationsMask: number | null;
+}
+
 export interface AgentPointerDragRequest extends AgentPointerInputOptions {
 	from: AgentPointerTarget;
 	to: AgentPointerTarget;
@@ -69,6 +99,9 @@ export interface AgentPointerDragRequest extends AgentPointerInputOptions {
 	durationMs?: number;
 	steps?: number;
 	releaseDelayMs?: number;
+	dnd?: AgentPointerDragMode;
+	/** How long to wait for the page to start an HTML5 drag after the first moves. */
+	dragStartTimeoutMs?: number;
 }
 
 export type AgentKeyboardModifier = "Alt" | "Control" | "Meta" | "Shift";
@@ -122,4 +155,5 @@ export interface AgentPointerResult extends AgentPointerPoint {
 	target?: AgentPointerResolvedTarget;
 	deltaX?: number;
 	deltaY?: number;
+	dnd?: AgentPointerDragOutcome;
 }
