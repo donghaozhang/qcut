@@ -4,6 +4,7 @@ import type {
 	TimelineTrack,
 } from "@/types/timeline";
 import type { JianyingFontLabFontSummary } from "@/types/electron";
+import { privateFontAPI } from "./private-font-api";
 
 const fontPromises = new Map<string, Promise<FontFace>>();
 const loadedFontFaces = new Map<string, FontFace>();
@@ -71,7 +72,7 @@ async function readLocalFontBytes({
 }: {
 	asset: TextFontAssetReference;
 }) {
-	const api = window.electronAPI?.jianyingFontLab;
+	const api = privateFontAPI();
 	if (!api) throw new Error("字体实验室仅在 QCut 桌面版中可用");
 	const loaded = await api.load({ fontId: asset.assetId });
 	if (

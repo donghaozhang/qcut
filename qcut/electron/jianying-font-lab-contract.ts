@@ -6,6 +6,7 @@ export type JianyingFontSourceKind =
 	| "effect"
 	| "artist-effect"
 	| "ai-text-template"
+	| "qcut-cache"
 	| "gecko";
 
 export type JianyingFontFormat = "ttf" | "otf";
