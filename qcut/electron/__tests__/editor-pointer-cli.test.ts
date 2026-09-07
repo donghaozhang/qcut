@@ -20,6 +20,14 @@ const BACKGROUND_POINTER_REQUIREMENT = {
 		"Update QCut. Editors advertising state.pointer 1.0.0 can retry with --foreground.",
 } as const;
 
+const HTML5_DRAG_REQUIREMENT = {
+	name: "state.pointer",
+	minVersion: "1.2.0",
+	feature: "HTML5 drag-and-drop",
+	remediation:
+		"Update QCut, or retry with --dnd auto so older editors fall back to a mouse drag.",
+} as const;
+
 function makeOptions({
 	command,
 	values = {},
@@ -178,6 +186,72 @@ describe("editor pointer CLI handlers", () => {
 		expect(requireCapability).toHaveBeenCalledWith(
 			BACKGROUND_POINTER_REQUIREMENT
 		);
+	});
+
+	it("passes the HTML5 drag mode through and requires the newer pointer capability", async () => {
+		const { client, post, requireCapability } = createClient();
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:drag",
+				values: { fromX: 0, fromY: 700, toX: 800, toY: 700, dnd: "html5" },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith(
+			"/api/claude/pointer/drag",
+			expect.objectContaining({ dnd: "html5", inputMode: "background" })
+		);
+		expect(requireCapability).toHaveBeenCalledWith(
+			BACKGROUND_POINTER_REQUIREMENT
+		);
+		expect(requireCapability).toHaveBeenCalledWith(HTML5_DRAG_REQUIREMENT);
+	});
+
+	it("rejects invalid or foreground HTML5 drag modes before sending a request", async () => {
+		const { client, post } = createClient();
+		const invalid = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:drag",
+				values: { fromX: 0, fromY: 700, toX: 800, toY: 700, dnd: "native" },
+			}),
+		});
+		expect(invalid.success).toBe(false);
+		expect(invalid.error).toContain("--dnd must be one of");
+
+		const foreground = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:drag",
+				values: {
+					fromX: 0,
+					fromY: 700,
+					toX: 800,
+					toY: 700,
+					dnd: "html5",
+					foreground: true,
+				},
+			}),
+		});
+		expect(foreground.success).toBe(false);
+		expect(foreground.error).toContain("--foreground");
+		expect(post).not.toHaveBeenCalled();
+	});
+
+	it("parses --dnd for one-shot drags", () => {
+		expect(
+			parseCliArgs([
+				"editor:pointer:drag",
+				"--from-ref",
+				"@e12",
+				"--to-ref",
+				"@e27",
+				"--dnd",
+				"html5",
+			])
+		).toEqual(expect.objectContaining({ dnd: "html5" }));
 	});
 
 	it("drags flattened interactive list items by semantic index", async () => {
