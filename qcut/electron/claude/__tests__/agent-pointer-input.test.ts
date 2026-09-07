@@ -41,6 +41,12 @@ function createInputHarness({
 	const detach = vi.fn(() => {
 		debuggerAttached = false;
 	});
+	type DebuggerListener = (
+		event: unknown,
+		method: string,
+		params: Record<string, unknown>
+	) => void;
+	const debuggerListeners: DebuggerListener[] = [];
 	const webContents = {
 		backgroundThrottling: true,
 		isDestroyed: () => false,
@@ -50,12 +56,27 @@ function createInputHarness({
 			isAttached: () => debuggerAttached,
 			attach,
 			detach,
+			on: (_event: string, listener: DebuggerListener) => {
+				debuggerListeners.push(listener);
+			},
+			removeListener: (_event: string, listener: DebuggerListener) => {
+				const index = debuggerListeners.indexOf(listener);
+				if (index >= 0) debuggerListeners.splice(index, 1);
+			},
 			sendCommand: vi.fn(
 				async (method: string, params?: Record<string, unknown>) => {
 					debuggerCommands.push({ method, params });
 				}
 			),
 		},
+	};
+	const emitDebuggerMessage = (
+		method: string,
+		params: Record<string, unknown>
+	) => {
+		for (const listener of [...debuggerListeners]) {
+			listener({}, method, params);
+		}
 	};
 	const win = {
 		isDestroyed: () => false,
@@ -73,7 +94,9 @@ function createInputHarness({
 	return {
 		attach,
 		debuggerCommands,
+		debuggerListeners,
 		detach,
+		emitDebuggerMessage,
 		focus,
 		input: new AgentPointerInput({ win }),
 		inputEvents,
@@ -258,5 +281,90 @@ describe("AgentPointerInput", () => {
 		);
 		expect(harness.focus).not.toHaveBeenCalled();
 		expect(harness.webContents.backgroundThrottling).toBe(true);
+	});
+
+	it("intercepts HTML5 drags and replays them as CDP drag events", async () => {
+		const harness = createInputHarness();
+		const session = await harness.input.begin({ inputMode: "background" });
+
+		const interception = await harness.input.beginDragInterception({ session });
+		expect(interception).not.toBeNull();
+		expect(harness.debuggerCommands.at(-1)).toEqual({
+			method: "Input.setInterceptDrags",
+			params: { enabled: true },
+		});
+		expect(harness.debuggerListeners).toHaveLength(1);
+		expect(interception?.intercepted()).toBeNull();
+
+		const pending = interception!.waitForIntercept({ timeoutMs: 1000 });
+		harness.emitDebuggerMessage("Input.dragIntercepted", {
+			data: {
+				items: [
+					{ mimeType: "application/x-media-item", data: '{"id":"m1"}' },
+					{ mimeType: 7, data: "ignored" },
+				],
+				files: ["/tmp/still.png"],
+				dragOperationsMask: 1,
+			},
+		});
+		const data = {
+			items: [{ mimeType: "application/x-media-item", data: '{"id":"m1"}' }],
+			files: ["/tmp/still.png"],
+			dragOperationsMask: 1,
+		};
+		await expect(pending).resolves.toEqual(data);
+		expect(interception?.intercepted()).toEqual(data);
+
+		await harness.input.sendDrag({
+			session,
+			type: "drop",
+			point: { x: 10, y: 20 },
+			data,
+		});
+		expect(harness.debuggerCommands.at(-1)).toEqual({
+			method: "Input.dispatchDragEvent",
+			params: { type: "drop", x: 10, y: 20, data },
+		});
+
+		await interception!.dispose();
+		expect(harness.debuggerCommands.at(-1)).toEqual({
+			method: "Input.setInterceptDrags",
+			params: { enabled: false },
+		});
+		expect(harness.debuggerListeners).toHaveLength(0);
+		await harness.input.end({ session });
+	});
+
+	it("resolves null when no drag is intercepted before the timeout", async () => {
+		const harness = createInputHarness();
+		const session = await harness.input.begin({ inputMode: "background" });
+		const interception = await harness.input.beginDragInterception({ session });
+
+		await expect(
+			interception!.waitForIntercept({ timeoutMs: 0 })
+		).resolves.toBeNull();
+		harness.emitDebuggerMessage("Input.dragIntercepted", { data: null });
+		expect(interception?.intercepted()).toBeNull();
+
+		await interception!.dispose();
+		await harness.input.end({ session });
+	});
+
+	it("cannot intercept or dispatch drags through foreground Electron input", async () => {
+		const harness = createInputHarness();
+		const session = await harness.input.begin({ inputMode: "foreground" });
+
+		await expect(
+			harness.input.beginDragInterception({ session })
+		).resolves.toBeNull();
+		await expect(
+			harness.input.sendDrag({
+				session,
+				type: "dragEnter",
+				point: { x: 1, y: 1 },
+				data: { items: [], dragOperationsMask: 1 },
+			})
+		).rejects.toThrow("require background pointer input");
+		expect(harness.debuggerCommands).toEqual([]);
 	});
 });

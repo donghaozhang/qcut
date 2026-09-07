@@ -417,6 +417,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"to-time": { type: "string" },
 			"to-index": { type: "string" },
 			via: { type: "string" },
+			dnd: { type: "string" },
 			"hold-ms": { type: "string" },
 			"duration-ms": { type: "string" },
 			steps: { type: "string" },
@@ -1076,6 +1077,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseInt(values["to-index"] as string, 10)
 			: undefined,
 		via: values.via as string | undefined,
+		dnd: values.dnd as string | undefined,
 		holdMs: parseFiniteCliNumber({ value: values["hold-ms"] }),
 		durationMs: parseFiniteCliNumber({ value: values["duration-ms"] }),
 		steps: values.steps

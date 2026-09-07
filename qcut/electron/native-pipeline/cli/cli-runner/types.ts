@@ -365,6 +365,8 @@ export interface CLIRunOptions {
 	toTime?: number;
 	toIndex?: number;
 	via?: string;
+	/** HTML5 drag-and-drop handling for editor:pointer:drag: auto, html5, or mouse. */
+	dnd?: string;
 	holdMs?: number;
 	durationMs?: number;
 	steps?: number;

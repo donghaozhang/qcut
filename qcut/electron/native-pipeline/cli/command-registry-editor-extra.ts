@@ -272,7 +272,7 @@ export function createExtraEditorCommands({
 		),
 		"editor:pointer:drag": ed(
 			"editor:pointer:drag",
-			"Drag between snapshot refs or editor coordinates",
+			"Drag between snapshot refs or editor coordinates; HTML5 drag-and-drop sources such as media panel items are intercepted and dropped on the destination",
 			[
 				f("--from", "string", "Semantic starting target"),
 				f("--to", "string", "Semantic destination target"),
@@ -301,6 +301,12 @@ export function createExtraEditorCommands({
 				f("--release-delay-ms", "number", "Pause before mouseUp", {
 					default: 100,
 				}),
+				f(
+					"--dnd",
+					"string",
+					"HTML5 drag-and-drop: auto intercepts a drag the page starts, html5 requires one, mouse never intercepts",
+					{ default: "auto", enum: ["auto", "html5", "mouse"] }
+				),
 				f("--verify", "boolean", "Verify the resulting list index", {
 					default: true,
 				}),
@@ -321,6 +327,7 @@ export function createExtraEditorCommands({
 			[
 				"qcut-pipeline editor:pointer:drag --from-ref @e12 --to-ref @e27 --force --json",
 				"qcut-pipeline editor:pointer:drag --from-x 400 --from-y 700 --to-x 700 --to-y 700 --force --json",
+				"qcut editor pointer drag --from testid:media-item --to testid:timeline-track --dnd html5 --force --json",
 			]
 		),
 		"editor:pointer:wait-for": ed(

@@ -129,6 +129,13 @@ After click or drag, verify the resulting editor or timeline state rather than
 treating a successful input event as proof of the intended edit. Use
 `editor:undo` to restore an E2E drag fixture after verification.
 
+Panel items (media, text, effects, transitions, sounds) are HTML5 drag sources.
+`editor:pointer:drag` intercepts the drag the page starts and drops it on the
+destination automatically (`--dnd auto`); pass `--dnd html5` when the drop must
+be an HTML5 drop, or `--dnd mouse` for a plain pointer drag. HTML5 drops need
+background input and a QCut editor advertising `state.pointer` 1.2.0 or newer;
+the result's `dnd.intercepted` and `dnd.mimeTypes` show what was dropped.
+
 ## Apply and adjust a video speed curve
 
 Export the selected element before touching the UI:

@@ -40,7 +40,7 @@ Download the newest packaged build from the [latest QCut release](https://github
 | macOS Apple Silicon | `.dmg` |
 | Linux x64 | `.AppImage` or `.deb` |
 
-QCut can also check for updates inside the desktop app or from the CLI:
+QCut can also check for updates inside the desktop app or from the bundled CLI (see [QCut CLI](#qcut-cli) for how to run it):
 
 ```bash
 qcut update --check
@@ -90,6 +90,45 @@ claude plugin install qcut@qcut
 Editor-control tasks require the QCut desktop app to be running. CLI-only generation, analysis, and transcription can run without an open editor. The plugin never bundles API credentials; configure optional provider keys through QCut settings or its interactive CLI setup.
 
 See the [QCut plugin documentation](qcut/plugins/qcut/README.md) for setup, diagnostics, local development, privacy, and update behavior.
+
+## QCut CLI
+
+Every QCut build ships a structured command-line interface. It has 280 commands in 14 groups, every command accepts `--json` and returns a consistent envelope (`status`, `command_id`, `duration_ms`, `data`), and `--help --json` works at the root, group, command, and flag level.
+
+```bash
+qcut --help --json                                   # groups, commands, global flags
+qcut gen image -t "A cinematic portrait" --json      # generate media
+qcut analyze transcribe -i interview.mp4 --srt       # transcribe to SRT
+qcut editor timeline export --project-id <id> --json # inspect a running editor
+qcut compose render --config edit.qcut-compose.json --output final.mp4
+qcut filter-lab catalog-independent --json           # filters QCut's own Metal renderer supports
+```
+
+| Group | What it covers |
+| --- | --- |
+| `editor` | Control a running editor: projects, media, tracks, timeline, stickers, export, snapshots, pointer and keyboard input |
+| `gen` | Images, video, avatars, speech, music, voice conversion and cloning |
+| `analyze` | Video analysis and review, scene indexing, transcription, translation, consistency checks |
+| `edit` | AutoClip, upscaling, motion transfer, subtitles, audio cleanup, portrait presets, deflicker, sticker and sound search |
+| `compose` | Snapshot, plan, validate, apply, render, and package multi-resource edits from a manifest |
+| `filter-lab`, `effect-lab`, `text-lab`, `sticker-lab`, `transition` | Local labs that browse, render, and verify filters, effects, flower text, sticker references, and transitions from caches on the same machine; nothing third-party is bundled |
+| `draft` | Guarded import, verification, and export of Jianying Professional drafts |
+| `flow` | YAML pipelines and ViMax idea-to-video, script-to-video, and novel-to-movie stages |
+| `instances`, `system` | Pick the editor the CLI talks to; update QCut, manage keys, list models, estimate cost, run diagnostics |
+
+**Running it.** The agent plugins locate the CLI for you. To use it directly:
+
+- From a source checkout: `cd qcut/qcut && bun install && bun run qcut -- --help`. After `bun run build`, `dist/electron/native-pipeline/cli/cli.js` is the `qcut` entry declared in `package.json`.
+- From an installed desktop app: the same `cli.js` is embedded in the app bundle. Run it through the app's executable with `ELECTRON_RUN_AS_NODE=1`, for example on macOS:
+
+```bash
+ELECTRON_RUN_AS_NODE=1 "/Applications/QCut AI Video Editor.app/Contents/MacOS/QCut AI Video Editor" \
+  "/Applications/QCut AI Video Editor.app/Contents/Resources/app.asar/electron/native-pipeline/cli/cli.js" --help
+```
+
+  On Windows and Linux the file lives at `<install dir>/resources/app.asar/electron/native-pipeline/cli/cli.js` next to the executable. Wrap that command in a shell alias or script named `qcut`, or point the plugins at it with `QCUT_CLI_PATH`.
+
+Editor commands need the desktop app running; generation, analysis, labs, and compose rendering do not. The full command reference is the bundled [native-cli skill](qcut/.claude/skills/native-cli/SKILL.md).
 
 ## Demo
 
@@ -147,11 +186,11 @@ Generate video from text, images, or avatars, compare supported AI models, and a
 
 | Area | Capabilities |
 | --- | --- |
-| Editing | Multitrack timeline, trim and split, text, captions, stickers, filters, transitions, masks, speed controls, live preview |
-| AI media | Text-to-image, text-to-video, image-to-video, speech, music, avatars, transcription, and media analysis |
-| Automation | Structured QCut CLI, Codex Plugin, Claude Code Plugin, editor inspection and control, machine-readable output |
-| Media workflow | Searchable media workspace, sound and sticker libraries, project organization, import and export |
-| Desktop | Windows, macOS, and Linux builds with native file access and bundled FFmpeg processing |
+| Editing | Multitrack timeline, trim and split, text and text animations, captions, stickers, filters, transitions, masks, speed controls, portrait retouching with per-face adjustments, project covers, live preview |
+| AI media | Text-to-image, text-to-video, image-to-video, speech, music, voice cloning, avatars and presenters, transcription, translation, and media analysis |
+| Automation | 280-command QCut CLI with JSON envelopes, Codex Plugin, Claude Code Plugin, editor inspection and control, compose manifests that build editable projects |
+| Media workflow | Searchable media workspace, sound and sticker libraries, project organization, guarded Jianying Professional draft import, local filter, effect, text, and sticker labs |
+| Desktop | Windows, macOS, and Linux builds with native file access, bundled FFmpeg processing, and a QCut-owned Metal filter renderer on macOS |
 
 ## Privacy
 
@@ -192,7 +231,10 @@ bun run dist:linux    # Linux AppImage and deb
 
 | Topic | Link |
 | --- | --- |
+| QCut CLI reference | [qcut/.claude/skills/native-cli/SKILL.md](qcut/.claude/skills/native-cli/SKILL.md) |
+| Agent plugin | [qcut/plugins/qcut/README.md](qcut/plugins/qcut/README.md) |
 | Build commands | [qcut/docs/technical/guides/build-commands.md](qcut/docs/technical/guides/build-commands.md) |
+| Compose workflows | [qcut/docs/task/qcut-compose-editable-project/cloud-and-labs-implementation.en.md](qcut/docs/task/qcut-compose-editable-project/cloud-and-labs-implementation.en.md) |
 | Project structure | [qcut/docs/technical/architecture/source-code-structure.md](qcut/docs/technical/architecture/source-code-structure.md) |
 | Media panels | [qcut/docs/technical/media-panel-reference.md](qcut/docs/technical/media-panel-reference.md) |
 | AI features | [qcut/docs/technical/ai/](qcut/docs/technical/ai/) |

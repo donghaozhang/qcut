@@ -103,6 +103,32 @@ const BACKGROUND_POINTER_CAPABILITY = {
 		"Update QCut. Editors advertising state.pointer 1.0.0 can retry with --foreground.",
 } as const;
 
+const HTML5_DRAG_CAPABILITY = {
+	name: "state.pointer",
+	minVersion: "1.2.0",
+	feature: "HTML5 drag-and-drop",
+	remediation:
+		"Update QCut, or retry with --dnd auto so older editors fall back to a mouse drag.",
+} as const;
+
+const DRAG_MODES = ["auto", "html5", "mouse"] as const;
+type DragMode = (typeof DRAG_MODES)[number];
+
+function parseDragMode({
+	value,
+}: {
+	value: string | undefined;
+}): { ok: true; mode: DragMode | undefined } | { ok: false; error: string } {
+	if (value === undefined) return { ok: true, mode: undefined };
+	if ((DRAG_MODES as readonly string[]).includes(value)) {
+		return { ok: true, mode: value as DragMode };
+	}
+	return {
+		ok: false,
+		error: `--dnd must be one of ${DRAG_MODES.join(", ")} (got ${value})`,
+	};
+}
+
 function pointerInputMode({
 	options,
 }: {
@@ -902,6 +928,16 @@ async function handleDrag({
 		});
 	}
 
+	const dragMode = parseDragMode({ value: options.dnd });
+	if (!dragMode.ok) return { success: false, error: dragMode.error };
+	if (dragMode.mode === "html5" && options.foreground) {
+		return {
+			success: false,
+			error:
+				"--dnd html5 needs background input; drop --foreground or use --dnd mouse",
+		};
+	}
+
 	const speed = speedMultiplier(options);
 	const request: AgentPointerDragRequest = {
 		from: from.target,
@@ -912,8 +948,12 @@ async function handleDrag({
 		durationMs: scaledDuration(options.durationMs, speed, 450),
 		steps: options.steps ?? 24,
 		releaseDelayMs: scaledDuration(options.releaseDelayMs, speed, 100),
+		...(dragMode.mode ? { dnd: dragMode.mode } : {}),
 	};
 	await requirePointerInputSupport({ client, options });
+	if (dragMode.mode === "html5") {
+		await client.requireCapability(HTML5_DRAG_CAPABILITY);
+	}
 	const data = await client.post("/api/claude/pointer/drag", request);
 
 	if (
@@ -1159,6 +1199,7 @@ async function executeSequenceAction({
 				durationMs: numberValue(action, "durationMs"),
 				steps: numberValue(action, "steps"),
 				releaseDelayMs: numberValue(action, "releaseDelayMs"),
+				dnd: stringValue(action, "dnd"),
 				verify:
 					typeof action.verify === "boolean"
 						? action.verify

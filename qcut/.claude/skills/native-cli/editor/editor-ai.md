@@ -235,7 +235,7 @@ qcut editor:generate:estimate-cost \
 | `--track-id` | string | Target track (with `--add-to-timeline`) |
 | `--start-time` | number | Timeline position (with `--add-to-timeline`) |
 
-**Suggest-cuts flags** (used with `editor:suggest-cuts`, not generation):
+**Suggest-cuts flags** (used with `editor:editing:suggest-cuts`, not generation):
 
 | Flag | Type | Description |
 |------|------|-------------|

@@ -16,6 +16,7 @@ import {
 	type AgentPointerTarget,
 	type AgentPointerVisualState,
 } from "../../types/claude-api.js";
+import { runAgentPointerDrag } from "./agent-pointer-drag.js";
 import { AgentPointerError } from "./agent-pointer-error.js";
 import {
 	AgentPointerInput,
@@ -67,6 +68,14 @@ interface MoveToOptions {
 	button?: AgentPointerButton | null;
 	dragging?: boolean;
 	durationMs?: number;
+}
+
+interface MoveStepOptions {
+	session: AgentPointerInputSession;
+	point: AgentPointerPoint;
+	action: AgentPointerAction;
+	button: AgentPointerButton | null;
+	dragging: boolean;
 }
 
 interface PressCycleOptions {
@@ -275,105 +284,15 @@ export class AgentPointerController {
 		return this.operations.runInput({
 			inputMode: request.inputMode,
 			operation: async ({ session }) => {
-				const from = await this.moveTo({
+				const { destination, outcome } = await runAgentPointerDrag({
+					host: this.dragHost(),
 					session,
-					target: request.from,
-					action: "drag",
+					request,
 				});
-				let buttonDown = false;
-				let destination: AgentPointerResolvedTarget | undefined;
-				try {
-					this.visual.update({
-						action: "drag",
-						inputMode: session.inputMode,
-						pressed: true,
-						dragging: true,
-						button: "left",
-					});
-					await this.input.sendMouse({
-						session,
-						type: "mouseDown",
-						point: from,
-						button: "left",
-						clickCount: 1,
-					});
-					buttonDown = true;
-					await this.sleep({
-						durationMs: request.holdMs ?? POINTER_PRESS_MS,
-					});
-
-					const waypoints = [...(request.via ?? []), request.to];
-					const resolvedWaypoints: AgentPointerResolvedTarget[] = [];
-					for (const waypoint of waypoints) {
-						resolvedWaypoints.push(
-							await this.targets.resolve({ target: waypoint })
-						);
-					}
-					const perSegmentSteps = request.steps
-						? Math.max(1, Math.round(request.steps / resolvedWaypoints.length))
-						: undefined;
-					const points: AgentPointerPoint[] = [];
-					let cursor: AgentPointerPoint | null = from;
-					for (const waypoint of resolvedWaypoints) {
-						points.push(
-							...buildPointerMovementPath({
-								from: cursor,
-								to: waypoint,
-								steps: perSegmentSteps,
-							})
-						);
-						cursor = waypoint;
-					}
-					const stepDelayMs =
-						request.durationMs !== undefined
-							? request.durationMs / Math.max(1, points.length - 1)
-							: POINTER_MOVE_STEP_MS;
-					await this.moveAlongPath({
-						session,
-						points,
-						action: "drag",
-						button: "left",
-						dragging: true,
-						stepDelayMs,
-					});
-					destination = resolvedWaypoints[resolvedWaypoints.length - 1];
-					await this.sleep({
-						durationMs: request.releaseDelayMs ?? POINTER_PRESS_MS,
-					});
-				} finally {
-					try {
-						if (buttonDown) {
-							await this.input.sendMouse({
-								session,
-								type: "mouseUp",
-								point: this.currentPosition ?? from,
-								button: "left",
-								clickCount: 1,
-							});
-						}
-					} finally {
-						this.visual.update({
-							action: "drag",
-							inputMode: session.inputMode,
-							pressed: false,
-							dragging: false,
-							button: null,
-						});
-						this.visual.scheduleIdle();
-					}
-				}
-
-				if (!destination) {
-					throw new AgentPointerError({
-						message: "Pointer drag did not resolve a destination.",
-						statusCode: 500,
-					});
-				}
-				return this.buildResult({
-					session,
-					action: "drag",
-					target: destination,
-				});
+				return {
+					...this.buildResult({ session, action: "drag", target: destination }),
+					dnd: outcome,
+				};
 			},
 		});
 	}
@@ -508,6 +427,22 @@ export class AgentPointerController {
 		});
 	}
 
+	private dragHost() {
+		return {
+			input: this.input,
+			visual: this.visual,
+			targets: this.targets,
+			sleep: this.sleep,
+			getPosition: () => this.currentPosition,
+			setPosition: (point: AgentPointerPoint) => {
+				this.currentPosition = { x: point.x, y: point.y };
+			},
+			moveTo: (input: MoveToOptions) => this.moveTo(input),
+			moveStep: (input: MoveStepOptions) => this.moveStep(input),
+			moveAlongPath: (input: MovePathOptions) => this.moveAlongPath(input),
+		};
+	}
+
 	private async moveTo({
 		session,
 		target,
@@ -547,6 +482,28 @@ export class AgentPointerController {
 		const point = points[index];
 		if (!point) return;
 
+		await this.moveStep({ session, point, action, button, dragging });
+
+		if (index >= points.length - 1) return;
+		await this.sleep({ durationMs: Math.max(0, stepDelayMs) });
+		await this.moveAlongPath({
+			session,
+			points,
+			index: index + 1,
+			action,
+			button,
+			dragging,
+			stepDelayMs,
+		});
+	}
+
+	private async moveStep({
+		session,
+		point,
+		action,
+		button,
+		dragging,
+	}: MoveStepOptions): Promise<void> {
 		const previous = this.currentPosition;
 		await this.input.sendMouse({
 			session,
@@ -566,18 +523,6 @@ export class AgentPointerController {
 			pressed: button !== null,
 			dragging,
 			button,
-		});
-
-		if (index >= points.length - 1) return;
-		await this.sleep({ durationMs: Math.max(0, stepDelayMs) });
-		await this.moveAlongPath({
-			session,
-			points,
-			index: index + 1,
-			action,
-			button,
-			dragging,
-			stepDelayMs,
 		});
 	}
 

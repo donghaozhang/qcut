@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	parseAgentPointerDragMode,
 	parseAgentPointerInputMode,
 	parseAgentPointerTarget,
 } from "../http/claude-http-pointer-routes.js";
@@ -41,6 +42,19 @@ describe("parseAgentPointerTarget", () => {
 		);
 		expect(() => parseAgentPointerInputMode({ value: "silent" })).toThrow(
 			"background' or 'foreground"
+		);
+	});
+
+	it("accepts the HTML5 drag modes and rejects anything else", () => {
+		expect(parseAgentPointerDragMode({ value: undefined })).toBeUndefined();
+		expect(parseAgentPointerDragMode({ value: "auto" })).toBe("auto");
+		expect(parseAgentPointerDragMode({ value: "html5" })).toBe("html5");
+		expect(parseAgentPointerDragMode({ value: "mouse" })).toBe("mouse");
+		expect(() => parseAgentPointerDragMode({ value: "native" })).toThrow(
+			"'auto', 'html5', or 'mouse'"
+		);
+		expect(() => parseAgentPointerDragMode({ value: 1 })).toThrow(
+			"'auto', 'html5', or 'mouse'"
 		);
 	});
 });

@@ -50,9 +50,9 @@ const CAPABILITIES: Capability[] = [
 	},
 	{
 		name: "state.pointer",
-		version: "1.1.0",
+		version: "1.2.0",
 		description:
-			"Visible Agent pointer control with background CDP and foreground Electron mouse input modes.",
+			"Visible Agent pointer control with background CDP and foreground Electron mouse input modes, plus HTML5 drag-and-drop interception.",
 		since: "1.2.0",
 		category: CLAUDE_CAPABILITY_CATEGORIES.STATE,
 	},
