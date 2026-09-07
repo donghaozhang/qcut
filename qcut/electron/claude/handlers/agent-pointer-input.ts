@@ -6,6 +6,7 @@ import type {
 import type {
 	AgentKeyboardModifier,
 	AgentPointerButton,
+	AgentPointerDragData,
 	AgentPointerInputBackend,
 	AgentPointerInputMode,
 	AgentPointerPoint,
@@ -15,6 +16,77 @@ import { AgentPointerError } from "./agent-pointer-error.js";
 
 type PointerMouseEventType = "mouseMove" | "mouseDown" | "mouseUp";
 type KeyboardEventType = "keyDown" | "keyUp";
+type DragEventType = "dragEnter" | "dragOver" | "drop" | "dragCancel";
+
+/**
+ * Handle for an HTML5 drag-and-drop interception started with
+ * `Input.setInterceptDrags`. Chromium reports the page's drag payload through
+ * `Input.dragIntercepted` instead of starting an OS drag, so the caller can
+ * replay it with drag events.
+ */
+export interface AgentPointerDragInterception {
+	intercepted: () => AgentPointerDragData | null;
+	waitForIntercept: (input: {
+		timeoutMs: number;
+	}) => Promise<AgentPointerDragData | null>;
+	dispose: () => Promise<void>;
+}
+
+type DebuggerMessageListener = (
+	event: unknown,
+	method: string,
+	params: unknown
+) => void;
+
+interface DebuggerEventSource {
+	on: (event: "message", listener: DebuggerMessageListener) => unknown;
+	removeListener: (
+		event: "message",
+		listener: DebuggerMessageListener
+	) => unknown;
+}
+
+function isDebuggerEventSource(value: unknown): value is DebuggerEventSource {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		typeof (value as DebuggerEventSource).on === "function" &&
+		typeof (value as DebuggerEventSource).removeListener === "function"
+	);
+}
+
+function normalizeDragData({
+	value,
+}: {
+	value: unknown;
+}): AgentPointerDragData | null {
+	if (typeof value !== "object" || value === null) return null;
+	const raw = value as {
+		items?: unknown;
+		files?: unknown;
+		dragOperationsMask?: unknown;
+	};
+	const items = Array.isArray(raw.items)
+		? raw.items.flatMap((item) => {
+				if (typeof item !== "object" || item === null) return [];
+				const { mimeType, data } = item as {
+					mimeType?: unknown;
+					data?: unknown;
+				};
+				if (typeof mimeType !== "string") return [];
+				return [{ mimeType, data: typeof data === "string" ? data : "" }];
+			})
+		: [];
+	const files = Array.isArray(raw.files)
+		? raw.files.filter((file): file is string => typeof file === "string")
+		: [];
+	return {
+		items,
+		...(files.length > 0 ? { files } : {}),
+		dragOperationsMask:
+			typeof raw.dragOperationsMask === "number" ? raw.dragOperationsMask : 1,
+	};
+}
 
 export interface AgentPointerInputSession {
 	inputMode: AgentPointerInputMode;
@@ -315,6 +387,107 @@ export class AgentPointerInput {
 				clickCount: clickCount ?? 0,
 				pointerType: "mouse",
 			},
+		});
+	}
+
+	/**
+	 * Start intercepting HTML5 drags for the current background session.
+	 * Returns null when interception is unavailable (foreground Electron input
+	 * has no CDP session), so callers can fall back to a plain mouse drag.
+	 */
+	async beginDragInterception({
+		session,
+	}: {
+		session: AgentPointerInputSession;
+	}): Promise<AgentPointerDragInterception | null> {
+		if (session.inputMode !== "background") return null;
+		const debuggerSession = this.win.webContents.debugger;
+		if (!isDebuggerEventSource(debuggerSession)) return null;
+
+		let captured: AgentPointerDragData | null = null;
+		let notify: (() => void) | null = null;
+		const listener: DebuggerMessageListener = (_event, method, params) => {
+			if (method !== "Input.dragIntercepted" || captured) return;
+			const data = normalizeDragData({
+				value: (params as { data?: unknown } | undefined)?.data,
+			});
+			if (!data) return;
+			captured = data;
+			notify?.();
+		};
+		debuggerSession.on("message", listener);
+		try {
+			await this.dispatchBackgroundCommand({
+				method: "Input.setInterceptDrags",
+				params: { enabled: true },
+			});
+		} catch (error) {
+			debuggerSession.removeListener("message", listener);
+			throw error;
+		}
+
+		return {
+			intercepted: () => captured,
+			waitForIntercept: ({ timeoutMs }) => {
+				if (captured) return Promise.resolve(captured);
+				return new Promise((resolve) => {
+					const timer = setTimeout(
+						() => {
+							notify = null;
+							resolve(captured);
+						},
+						Math.max(0, timeoutMs)
+					);
+					notify = () => {
+						clearTimeout(timer);
+						notify = null;
+						resolve(captured);
+					};
+				});
+			},
+			dispose: async () => {
+				debuggerSession.removeListener("message", listener);
+				if (
+					this.win.isDestroyed() ||
+					this.win.webContents.isDestroyed() ||
+					!this.win.webContents.debugger.isAttached()
+				) {
+					return;
+				}
+				try {
+					await this.win.webContents.debugger.sendCommand(
+						"Input.setInterceptDrags",
+						{ enabled: false }
+					);
+				} catch {
+					// The debugger session is detached right after the drag anyway.
+				}
+			},
+		};
+	}
+
+	/** Dispatch one HTML5 drag event carrying an intercepted payload. */
+	async sendDrag({
+		session,
+		type,
+		point,
+		data,
+	}: {
+		session: AgentPointerInputSession;
+		type: DragEventType;
+		point: AgentPointerPoint;
+		data: AgentPointerDragData;
+	}): Promise<void> {
+		if (session.inputMode !== "background") {
+			throw new AgentPointerError({
+				message:
+					"HTML5 drag-and-drop events require background pointer input; foreground Electron input cannot dispatch drag events.",
+				statusCode: 400,
+			});
+		}
+		await this.dispatchBackgroundCommand({
+			method: "Input.dispatchDragEvent",
+			params: { type, x: point.x, y: point.y, data },
 		});
 	}
 
