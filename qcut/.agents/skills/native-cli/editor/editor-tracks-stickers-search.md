@@ -145,7 +145,7 @@ confirmation when the action policy allows it.
 | `editor pointer click` | — | same as `move` | Click with real mouseDown and mouseUp events |
 | `editor pointer double-click` | — | same as `move` | Double-click |
 | `editor pointer right-click` | — | same as `move` | Open a context menu with a real right-click |
-| `editor pointer drag` | — | `--from-ref/--to-ref`, `--from-x/--from-y/--to-x/--to-y`, `--to-time`, `--to-index`, `--via`, `--hold-ms`, `--duration-ms`, `--steps`, `--verify` | Drag between refs or coordinates |
+| `editor pointer drag` | — | `--from-ref/--to-ref`, `--from-x/--from-y/--to-x/--to-y`, `--to-time`, `--to-index`, `--via`, `--hold-ms`, `--duration-ms`, `--steps`, `--verify`, `--dnd auto\|html5\|mouse` | Drag between refs or coordinates; HTML5 drag sources are intercepted and dropped |
 | `editor pointer scroll` | — | `--delta-x`, `--delta-y`, plus targeting flags | Scroll at the pointer, a ref, or a coordinate |
 | `editor pointer wait-for` | — | `--target`, `--text`, `--timeout-ms`, `--interval-ms` | Wait for a semantic target or visible text |
 | `editor pointer hide` | — | — | Hide the Agent pointer overlay |
@@ -155,5 +155,27 @@ confirmation when the action policy allows it.
 qcut editor snapshot --interactive --json
 qcut editor pointer click --ref @e12 --force --json
 qcut editor pointer drag --from-ref @e12 --to-ref @e27 --force --json
+qcut editor pointer drag --from testid:media-item --to testid:timeline-track --dnd html5 --force --json
 qcut editor pointer sequence --actions @demo-actions.json --record demo.mp4 --json
 ```
+
+### HTML5 drag-and-drop
+
+Media, text, effect, transition, and sound panel items are HTML5 drag sources,
+and the timeline tracks only accept drops through `dataTransfer`. A plain
+mouse drag cannot place them. In background mode `pointer drag` enables CDP
+drag interception before pressing: when the page starts a drag, the pointer
+captures its payload and replays it as `dragEnter` → `dragOver` → `drop` at
+the destination, then releases the button.
+
+- `--dnd auto` (default): intercept when the page starts a drag, otherwise
+  finish as a mouse drag. Timeline clips still move with mouse events.
+- `--dnd html5`: require an intercepted drag; fails with 409 when the source
+  is not draggable. Needs `state.pointer` 1.2.0 and background input.
+- `--dnd mouse`: never intercept (the pre-1.2.0 behavior).
+
+The result carries `dnd: { mode, intercepted, backend, mimeTypes, fileCount,
+dragOperationsMask }`; `mimeTypes` lists what the page put in the drag, for
+example `application/x-media-item`. Verify the timeline afterwards with
+`editor timeline export`, since a completed drop is not proof of the intended
+edit.
