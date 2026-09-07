@@ -525,7 +525,7 @@ describe("Claude HTTP Server", () => {
 			(cap: { name: string }) => cap.name === "state.pointer"
 		);
 		expect(pointerCapability).toMatchObject({
-			version: "1.1.0",
+			version: "1.2.0",
 			since: "1.2.0",
 		});
 	});
